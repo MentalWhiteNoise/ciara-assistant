@@ -1,0 +1,44 @@
+# ── Runtime data (NEVER commit these) ────────────────────────────────────────
+data/
+*.db
+*.db-shm
+*.db-wal
+*.vault
+.env
+.env.*
+!.env.example
+
+# ── Dependencies ──────────────────────────────────────────────────────────────
+node_modules/
+.pnpm-store/
+
+# ── Build outputs ─────────────────────────────────────────────────────────────
+dist/
+build/
+.turbo/
+
+# ── TypeScript ────────────────────────────────────────────────────────────────
+*.tsbuildinfo
+
+# ── OS ───────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Editor ────────────────────────────────────────────────────────────────────
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+
+# ── Logs ──────────────────────────────────────────────────────────────────────
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# ── Drizzle generated (keep migrations, not snapshots) ────────────────────────
+apps/api/src/db/migrations/meta/
+
+# ── TLS certs (local dev only) ────────────────────────────────────────────────
+*.pem
+*.key
