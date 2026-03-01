@@ -50,6 +50,19 @@ track tasks, and view basic reports. No integrations yet.
 - [ ] Scheduled sync jobs (daily auto-import, configurable schedule)
 
 ### Feature Enrichment
+- [ ] **Standalone task checklists / templates** — reusable named checklists of
+  subtasks (no required dates). Open any checklist in a single full-page view
+  to work through items with checkboxes. Example: "Convention Prep", "Book Launch
+  Checklist", "Commission Intake". Distinct from event-driven task templates.
+  DB: `task_templates` table already exists; checklist mode is a new UI surface.
+
+- [ ] **Event type custom properties** — each event type can define its own
+  metadata schema (optional + required fields). When creating an event of that
+  type the form shows those fields. Example: Convention → venue, tableNumber,
+  registrationCost, tableSize. Art Commission → client, medium, dimensions,
+  depositPaid. DB: `event_types.metadata_schema` and `calendar_events.metadata`
+  already exist; needs Settings UI to configure schemas + dynamic form rendering.
+
 - [ ] Task templates + auto-generation from event types
 - [ ] Project tracking (group events + tasks + transactions)
 - [ ] Inventory management (stock levels, movements, reorder alerts)
