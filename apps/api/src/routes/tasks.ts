@@ -25,6 +25,7 @@ const CreateTaskSchema = z.object({
   scheduledDate: z.string().optional(), // which day it appears on daily list
   sortOrder: z.number().int().default(0),
   tags: z.array(z.string()).optional(),
+  checklistId: z.string().optional(),   // group this task under a checklist
 });
 
 const UpdateTaskSchema = CreateTaskSchema.partial();
@@ -36,14 +37,15 @@ export async function taskRoutes(app: FastifyInstance) {
 
   // ── GET /api/tasks ───────────────────────────────────────────────────────────
   // Query params:
-  //   status     — "todo" | "in_progress" | "done" | "skipped" | "active"
-  //                "active" means todo + in_progress (default)
-  //   date       — ISO date: returns tasks scheduled for OR due on that date
-  //   from / to  — date range for scheduledDate or dueDate
+  //   status      — "todo" | "in_progress" | "done" | "skipped" | "active" | "all"
+  //                 "active" means todo + in_progress (default)
+  //   date        — ISO date: returns tasks scheduled for OR due on that date
+  //   checklistId — filter to tasks belonging to a specific checklist
   app.get("/", async (request) => {
-    const { status, date } = request.query as {
+    const { status, date, checklistId } = request.query as {
       status?: string;
       date?: string;
+      checklistId?: string;
     };
 
     let rows = db
@@ -51,6 +53,11 @@ export async function taskRoutes(app: FastifyInstance) {
       .from(tasks)
       .orderBy(asc(tasks.sortOrder), asc(tasks.dueDate))
       .all();
+
+    // Checklist filter
+    if (checklistId) {
+      rows = rows.filter((t) => t.checklistId === checklistId);
+    }
 
     // Status filter
     if (status === "active" || !status) {

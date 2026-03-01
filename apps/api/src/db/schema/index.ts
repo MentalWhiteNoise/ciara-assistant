@@ -6,8 +6,9 @@ export * from "./categories";   // also exports: channels
 export * from "./products";
 export * from "./projects";
 export * from "./calendar";     // also exports: eventTypes
-export * from "./tasks";        // also exports: taskTemplates
+export * from "./tasks";        // also exports: taskTemplates, checklists
 export * from "./transactions"; // also exports: attachments
 export * from "./inventory";    // also exports: inventoryMovements
 export * from "./assets";       // also exports: mileageLogs
+export * from "./orders";       // also exports: orderItems
 export * from "./sync";         // also exports: importDedupLog

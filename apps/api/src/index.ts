@@ -10,6 +10,10 @@ import { transactionRoutes } from "./routes/transactions.js";
 import { referenceRoutes } from "./routes/reference.js";
 import { taskRoutes } from "./routes/tasks.js";
 import { calendarRoutes } from "./routes/calendar.js";
+import { orderRoutes } from "./routes/orders.js";
+import { checklistRoutes } from "./routes/checklists.js";
+import { checklistTemplateRoutes } from "./routes/checklist-templates.js";
+import { settingsRoutes } from "./routes/settings.js";
 import { pruneExpiredTokens } from "./auth/tokens.js";
 
 export async function buildApp() {
@@ -29,7 +33,9 @@ export async function buildApp() {
       "http://localhost:5173",       // Vite dev server
       "https://localhost:5173",
       "https://localhost:3001",
-      /^https:\/\/ciara\.local/,     // tablet / phone on LAN
+      /^https:\/\/ciara\.local/,     // tablet / phone on LAN (mkcert)
+      // RFC 1918 private IP ranges — covers 192.168.x.x, 10.x.x.x, 172.16-31.x.x
+      /^https?:\/\/(192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)(:\d+)?$/,
     ],
     credentials: true,
   });
@@ -69,7 +75,11 @@ export async function buildApp() {
   await app.register(transactionRoutes, { prefix: "/api/transactions" });
   await app.register(taskRoutes, { prefix: "/api/tasks" });
   await app.register(calendarRoutes, { prefix: "/api" });
+  await app.register(orderRoutes, { prefix: "/api/orders" });
+  await app.register(checklistRoutes, { prefix: "/api/checklists" });
+  await app.register(checklistTemplateRoutes, { prefix: "/api/checklist-templates" });
   await app.register(referenceRoutes, { prefix: "/api" });
+  await app.register(settingsRoutes, { prefix: "/api" });
 
   return app;
 }

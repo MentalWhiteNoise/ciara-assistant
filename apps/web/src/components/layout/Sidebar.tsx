@@ -22,6 +22,7 @@ const NAV_GROUPS: { heading: string; items: NavItem[] }[] = [
       { label: "Dashboard", to: "/", icon: "▦" },
       { label: "Calendar", to: "/calendar", icon: "◫" },
       { label: "Tasks", to: "/tasks", icon: "◻" },
+      { label: "Checklists", to: "/checklists", icon: "☑" },
     ],
   },
   {
@@ -40,6 +41,12 @@ const NAV_GROUPS: { heading: string; items: NavItem[] }[] = [
     ],
   },
   {
+    heading: "Fulfillment",
+    items: [
+      { label: "Orders", to: "/orders", icon: "◧" },
+    ],
+  },
+  {
     heading: "Reporting",
     items: [
       { label: "Reports", to: "/reports", icon: "◉" },
@@ -52,7 +59,7 @@ const NAV_GROUPS: { heading: string; items: NavItem[] }[] = [
   },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ onClose }: { onClose?: () => void }) {
   const navigate = useNavigate();
   const { user, clearAuth } = useAuthStore();
 
@@ -88,6 +95,7 @@ export default function Sidebar() {
                 key={item.to}
                 to={item.to}
                 end={item.to === "/"}
+                onClick={onClose}
                 className={({ isActive }) =>
                   [
                     "flex items-center gap-2.5 px-2 py-1.5 rounded-md text-sm transition-colors mb-0.5",

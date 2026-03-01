@@ -4,8 +4,9 @@
 // Quick-add: type a task title and press Enter to create it instantly.
 // Each task: checkbox to mark done, priority badge, due date, edit slide-over.
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useLocation, useNavigate } from "react-router-dom";
 import { apiFetch } from "@/lib/api";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -22,8 +23,14 @@ interface Task {
   dueDate?: string | null;
   scheduledDate?: string | null;
   completedAt?: string | null;
+  checklistId?: string | null;
   tags: string[];
   createdAt: string;
+}
+
+interface ChecklistSummary {
+  id: string;
+  name: string;
 }
 
 interface TaskFormData {
@@ -267,10 +274,14 @@ function TaskRow({
   task,
   onToggle,
   onEdit,
+  checklistName,
+  onChecklistClick,
 }: {
   task: Task;
   onToggle: () => void;
   onEdit: () => void;
+  checklistName?: string;
+  onChecklistClick?: () => void;
 }) {
   const isDone = task.status === "done" || task.status === "skipped";
   const isOverdue =
@@ -283,10 +294,10 @@ function TaskRow({
       className="flex items-start gap-3 py-3 px-4 hover:bg-gray-50 rounded-lg group transition-colors cursor-pointer"
       onClick={onEdit}
     >
-      {/* Checkbox */}
+      {/* Checkbox — larger hit area for mobile */}
       <button
         onClick={(e) => { e.stopPropagation(); onToggle(); }}
-        className={`mt-0.5 flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
+        className={`mt-0.5 flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors p-1 box-content ${
           isDone
             ? "bg-green-500 border-green-500"
             : "border-gray-300 hover:border-indigo-500"
@@ -315,6 +326,16 @@ function TaskRow({
             <span className={`w-1.5 h-1.5 rounded-full ${PRIORITY_DOT[task.priority]}`} />
             {task.priority}
           </span>
+          {/* Checklist badge — navigates to parent checklist */}
+          {checklistName && onChecklistClick && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onChecklistClick(); }}
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors"
+              title={`Part of checklist: ${checklistName}`}
+            >
+              ☑ {checklistName}
+            </button>
+          )}
         </div>
         {task.description && (
           <p className="text-xs text-gray-400 mt-0.5 truncate">{task.description}</p>
@@ -351,7 +372,12 @@ const TABS: { key: TabKey; label: string }[] = [
 
 export default function TasksPage() {
   const queryClient = useQueryClient();
-  const [tab, setTab] = useState<TabKey>("today");
+  const location = useLocation();
+  const navigate = useNavigate();
+  // Capture the ID to open once — useState with initializer so it only reads on mount
+  const [openTaskId] = useState<string | null>(() => location.state?.openTaskId ?? null);
+  // If we arrived from the dashboard to open a specific task, start on Active tab
+  const [tab, setTab] = useState<TabKey>(() => openTaskId ? "active" : "today");
   const [editing, setEditing] = useState<Task | null>(null);
   const [addingNew, setAddingNew] = useState(false);
   const [quickAdd, setQuickAdd] = useState("");
@@ -366,9 +392,26 @@ export default function TasksPage() {
     queryFn: () => tasksApi.list(queryStatus, queryDate),
   });
 
+  // Fetch checklist names so task rows can show a badge for their parent checklist
+  const { data: checklistList = [] } = useQuery({
+    queryKey: ["checklists"],
+    queryFn: () => apiFetch<ChecklistSummary[]>("/api/checklists"),
+  });
+  const checklistMap = new Map(checklistList.map((cl) => [cl.id, cl.name]));
+
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ["tasks"] });
   };
+
+  // If navigated from dashboard with a task ID, open its edit panel once data loads
+  useEffect(() => {
+    if (!openTaskId || tasks.length === 0) return;
+    const task = tasks.find((t) => t.id === openTaskId);
+    if (task) {
+      setEditing(task);
+      setAddingNew(false);
+    }
+  }, [openTaskId, tasks]);
 
   // Quick-add mutation (Enter key creates instantly)
   const quickCreateMutation = useMutation({
@@ -526,6 +569,8 @@ export default function TasksPage() {
               task={task}
               onToggle={() => handleToggle(task)}
               onEdit={() => { setEditing(task); setAddingNew(false); }}
+              checklistName={task.checklistId ? checklistMap.get(task.checklistId) : undefined}
+              onChecklistClick={task.checklistId ? () => navigate("/checklists", { state: { checklistId: task.checklistId } }) : undefined}
             />
           ))}
         </div>
