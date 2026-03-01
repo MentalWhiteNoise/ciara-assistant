@@ -14,19 +14,19 @@ export default defineConfig({
   server: {
     port: 5173,
     // Proxy API requests to the backend during development.
-    // When the frontend calls /api/..., Vite forwards it to http://localhost:3002
+    // When the frontend calls /api/..., Vite forwards it to http://localhost:3100
     // This means we don't have to hardcode the API URL in the frontend.
     proxy: {
       "/api": {
-        target: "http://localhost:3002",
+        target: "http://localhost:3100",
         changeOrigin: true,
       },
       "/auth": {
-        target: "http://localhost:3002",
+        target: "http://localhost:3100",
         changeOrigin: true,
       },
       "/health": {
-        target: "http://localhost:3002",
+        target: "http://localhost:3100",
         changeOrigin: true,
       },
     },
