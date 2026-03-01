@@ -23,6 +23,8 @@ import LoginPage from "@/pages/LoginPage";
 import DashboardPage from "@/pages/DashboardPage";
 import ProductsPage from "@/pages/ProductsPage";
 import TransactionsPage from "@/pages/TransactionsPage";
+import TasksPage from "@/pages/TasksPage";
+import CalendarPage from "@/pages/CalendarPage";
 import PlaceholderPage from "@/pages/PlaceholderPage";
 
 export default function App() {
@@ -42,8 +44,8 @@ export default function App() {
             <Route path="/" element={<DashboardPage />} />
 
             {/* Calendar & Tasks */}
-            <Route path="/calendar" element={<PlaceholderPage />} />
-            <Route path="/tasks" element={<PlaceholderPage />} />
+            <Route path="/calendar" element={<CalendarPage />} />
+            <Route path="/tasks" element={<TasksPage />} />
 
             {/* Money */}
             <Route path="/transactions" element={<TransactionsPage />} />
