@@ -21,6 +21,8 @@ import AppLayout from "@/components/layout/AppLayout";
 import SetupPage from "@/pages/SetupPage";
 import LoginPage from "@/pages/LoginPage";
 import DashboardPage from "@/pages/DashboardPage";
+import ProductsPage from "@/pages/ProductsPage";
+import TransactionsPage from "@/pages/TransactionsPage";
 import PlaceholderPage from "@/pages/PlaceholderPage";
 
 export default function App() {
@@ -44,12 +46,12 @@ export default function App() {
             <Route path="/tasks" element={<PlaceholderPage />} />
 
             {/* Money */}
-            <Route path="/transactions" element={<PlaceholderPage />} />
+            <Route path="/transactions" element={<TransactionsPage />} />
             <Route path="/expenses" element={<PlaceholderPage />} />
             <Route path="/income" element={<PlaceholderPage />} />
 
             {/* Catalog */}
-            <Route path="/products" element={<PlaceholderPage />} />
+            <Route path="/products" element={<ProductsPage />} />
             <Route path="/inventory" element={<PlaceholderPage />} />
 
             {/* Reports */}

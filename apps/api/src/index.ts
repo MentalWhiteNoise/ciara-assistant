@@ -5,6 +5,9 @@ import jwt from "@fastify/jwt";
 import { getJwtSecret } from "./auth/jwt-secret.js";
 import { registerAuthMiddleware } from "./auth/middleware.js";
 import { authRoutes } from "./routes/auth.js";
+import { productRoutes } from "./routes/products.js";
+import { transactionRoutes } from "./routes/transactions.js";
+import { referenceRoutes } from "./routes/reference.js";
 import { pruneExpiredTokens } from "./auth/tokens.js";
 
 export async function buildApp() {
@@ -60,10 +63,9 @@ export async function buildApp() {
   await app.register(authRoutes, { prefix: "/auth" });
 
   // ── Protected API routes (require JWT) ───────────────────────────────────
-  // Registered here as we build Phase 1 features:
-  //
-  // await app.register(transactionRoutes, { prefix: "/api/transactions" });
-  // await app.register(productRoutes, { prefix: "/api/products" });
+  await app.register(productRoutes, { prefix: "/api/products" });
+  await app.register(transactionRoutes, { prefix: "/api/transactions" });
+  await app.register(referenceRoutes, { prefix: "/api" });
 
   return app;
 }
