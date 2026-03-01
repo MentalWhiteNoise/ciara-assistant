@@ -23,7 +23,7 @@ export async function buildApp() {
     origin: [
       "http://localhost:5173",       // Vite dev server
       "https://localhost:5173",
-      "https://localhost:3001",
+      "https://localhost:3002",
       /^https:\/\/ciara\.local/,     // tablet / phone on LAN
     ],
     credentials: true,
@@ -70,7 +70,7 @@ export async function buildApp() {
 
 async function start() {
   const app = await buildApp();
-  const port = Number(process.env.PORT ?? 3001);
+  const port = Number(process.env.PORT ?? 3002);
   const host = process.env.HOST ?? "0.0.0.0";
 
   try {
