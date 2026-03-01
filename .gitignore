@@ -31,6 +31,9 @@ desktop.ini
 *.swp
 *.swo
 
+# ── Claude Code local config (machine-specific permissions) ───────────────────
+.claude/
+
 # ── Logs ──────────────────────────────────────────────────────────────────────
 *.log
 npm-debug.log*
