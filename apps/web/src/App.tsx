@@ -1,30 +1,69 @@
-import { Routes, Route } from "react-router-dom";
+// App.tsx — root component. Defines the full route tree.
+//
+// Route structure:
+//
+//   /login          → LoginPage       (public)
+//   /setup          → SetupPage       (public, first-run only)
+//   /               → ProtectedRoute  → AppLayout → DashboardPage
+//   /calendar       → ProtectedRoute  → AppLayout → PlaceholderPage
+//   /tasks          → ProtectedRoute  → AppLayout → PlaceholderPage
+//   ... etc
+//
+// AuthInitializer wraps the whole tree and silently attempts to restore
+// the session on every page load using the httpOnly refresh cookie.
 
-// Placeholder pages — we'll build these out in Phase 1
-function DashboardPage() {
-  return (
-    <div className="p-8">
-      <h1 className="text-2xl font-semibold text-gray-900">Dashboard</h1>
-      <p className="mt-2 text-gray-500">Ciara Assistant is running.</p>
-    </div>
-  );
-}
+import { Routes, Route, Navigate } from "react-router-dom";
 
-function NotFoundPage() {
-  return (
-    <div className="p-8">
-      <h1 className="text-2xl font-semibold text-gray-900">404 — Not Found</h1>
-    </div>
-  );
-}
+import AuthInitializer from "@/components/AuthInitializer";
+import ProtectedRoute from "@/components/ProtectedRoute";
+import AppLayout from "@/components/layout/AppLayout";
+
+import SetupPage from "@/pages/SetupPage";
+import LoginPage from "@/pages/LoginPage";
+import DashboardPage from "@/pages/DashboardPage";
+import PlaceholderPage from "@/pages/PlaceholderPage";
 
 export default function App() {
   return (
-    <div className="min-h-screen bg-gray-50">
+    // AuthInitializer tries /auth/refresh on mount to restore a previous session
+    <AuthInitializer>
       <Routes>
-        <Route path="/" element={<DashboardPage />} />
-        <Route path="*" element={<NotFoundPage />} />
+        {/* ── Public routes ──────────────────────────────────────────────── */}
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/setup" element={<SetupPage />} />
+
+        {/* ── Protected routes — require authentication ───────────────────── */}
+        {/* ProtectedRoute checks auth state; AppLayout renders sidebar+content */}
+        <Route element={<ProtectedRoute />}>
+          <Route element={<AppLayout />}>
+            {/* Dashboard */}
+            <Route path="/" element={<DashboardPage />} />
+
+            {/* Calendar & Tasks */}
+            <Route path="/calendar" element={<PlaceholderPage />} />
+            <Route path="/tasks" element={<PlaceholderPage />} />
+
+            {/* Money */}
+            <Route path="/transactions" element={<PlaceholderPage />} />
+            <Route path="/expenses" element={<PlaceholderPage />} />
+            <Route path="/income" element={<PlaceholderPage />} />
+
+            {/* Catalog */}
+            <Route path="/products" element={<PlaceholderPage />} />
+            <Route path="/inventory" element={<PlaceholderPage />} />
+
+            {/* Reports */}
+            <Route path="/reports" element={<PlaceholderPage />} />
+            <Route path="/reports/tax" element={<PlaceholderPage />} />
+
+            {/* Settings */}
+            <Route path="/settings" element={<PlaceholderPage />} />
+          </Route>
+        </Route>
+
+        {/* Catch-all → dashboard (which will redirect to login if not auth'd) */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-    </div>
+    </AuthInitializer>
   );
 }
