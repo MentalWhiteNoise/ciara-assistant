@@ -3,11 +3,13 @@
 
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { authApi } from "@/lib/api";
 import { useAuthStore } from "@/stores/auth.store";
 
 export default function SetupPage() {
   const setAuth = useAuthStore((s) => s.setAuth);
+  const navigate = useNavigate();
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -30,7 +32,7 @@ export default function SetupPage() {
     },
     onSuccess: (data) => {
       setAuth(data.user, data.accessToken);
-      // Auth state change triggers App.tsx routing to redirect to dashboard
+      navigate("/", { replace: true });
     },
     onError: (err: Error) => {
       setValidationError(err.message);

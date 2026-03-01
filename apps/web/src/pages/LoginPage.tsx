@@ -2,17 +2,20 @@
 
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { authApi } from "@/lib/api";
 import { useAuthStore } from "@/stores/auth.store";
 
 export default function LoginPage() {
   const setAuth = useAuthStore((s) => s.setAuth);
+  const navigate = useNavigate();
   const [password, setPassword] = useState("");
 
   const login = useMutation({
     mutationFn: () => authApi.login(password),
     onSuccess: (data) => {
       setAuth(data.user, data.accessToken);
+      navigate("/", { replace: true });
     },
   });
 
