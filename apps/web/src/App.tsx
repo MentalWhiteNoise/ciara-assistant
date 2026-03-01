@@ -25,6 +25,7 @@ import ProductsPage from "@/pages/ProductsPage";
 import TransactionsPage from "@/pages/TransactionsPage";
 import TasksPage from "@/pages/TasksPage";
 import CalendarPage from "@/pages/CalendarPage";
+import ReportsPage from "@/pages/ReportsPage";
 import PlaceholderPage from "@/pages/PlaceholderPage";
 
 export default function App() {
@@ -57,7 +58,7 @@ export default function App() {
             <Route path="/inventory" element={<PlaceholderPage />} />
 
             {/* Reports */}
-            <Route path="/reports" element={<PlaceholderPage />} />
+            <Route path="/reports" element={<ReportsPage />} />
             <Route path="/reports/tax" element={<PlaceholderPage />} />
 
             {/* Settings */}
