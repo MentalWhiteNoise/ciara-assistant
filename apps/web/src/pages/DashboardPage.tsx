@@ -2,7 +2,7 @@
 // Shows financial summary, today's tasks, upcoming events, and recent transactions.
 
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuthStore } from "@/stores/auth.store";
 import { apiFetch } from "@/lib/api";
 
@@ -152,6 +152,7 @@ const TX_PREFIX: Record<string, string> = {
 // ── Main page ──────────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
+  const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
@@ -284,7 +285,11 @@ export default function DashboardPage() {
           ) : (
             <div className="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100">
               {recentTx.map((tx) => (
-                <div key={tx.id} className="px-4 py-3 flex items-center justify-between">
+                <button
+                  key={tx.id}
+                  onClick={() => navigate("/transactions", { state: { openTxId: tx.id } })}
+                  className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors text-left"
+                >
                   <div className="min-w-0">
                     <p className="text-sm text-gray-900 truncate">{tx.description}</p>
                     <p className="text-xs text-gray-400 mt-0.5">{fmtDate(tx.occurredAt)}</p>
@@ -292,7 +297,7 @@ export default function DashboardPage() {
                   <span className={`text-sm font-medium ml-4 flex-shrink-0 ${TX_COLORS[tx.type] ?? "text-gray-600"}`}>
                     {TX_PREFIX[tx.type]}{fmt(tx.amount)}
                   </span>
-                </div>
+                </button>
               ))}
             </div>
           )}
@@ -318,7 +323,11 @@ export default function DashboardPage() {
                 const color = evType?.color ?? "#6366f1";
                 const isToday = ev.startAt.slice(0, 10) === TODAY;
                 return (
-                  <div key={ev.id} className="px-4 py-3 flex items-center gap-3">
+                  <button
+                    key={ev.id}
+                    onClick={() => navigate("/calendar", { state: { openEventId: ev.id, eventDate: ev.startAt.slice(0, 10) } })}
+                    className="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 transition-colors text-left"
+                  >
                     <div className="w-1 h-8 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium text-gray-900 truncate">{ev.title}</p>
@@ -333,7 +342,7 @@ export default function DashboardPage() {
                         Today
                       </span>
                     )}
-                  </div>
+                  </button>
                 );
               })}
             </div>
@@ -349,7 +358,11 @@ export default function DashboardPage() {
               {dueSoon.map((task) => {
                 const isToday = task.dueDate === TODAY;
                 return (
-                  <div key={task.id} className="px-4 py-3 flex items-center gap-3">
+                  <button
+                    key={task.id}
+                    onClick={() => navigate("/tasks", { state: { openTaskId: task.id } })}
+                    className="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 transition-colors text-left"
+                  >
                     <span className={`w-2 h-2 rounded-full flex-shrink-0 ${PRIORITY_DOT[task.priority] ?? "bg-gray-400"}`} />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm text-gray-900 truncate">{task.title}</p>
@@ -357,7 +370,7 @@ export default function DashboardPage() {
                     <span className={`text-xs flex-shrink-0 ${isToday ? "text-red-600 font-medium" : "text-gray-400"}`}>
                       {isToday ? "Today" : fmtDate(task.dueDate!)}
                     </span>
-                  </div>
+                  </button>
                 );
               })}
             </div>

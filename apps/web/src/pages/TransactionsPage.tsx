@@ -1,8 +1,9 @@
 // TransactionsPage — manual income and expense entry.
 // Displays a filterable table of transactions with an add/edit slide-over form.
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useLocation } from "react-router-dom";
 import { apiFetch } from "@/lib/api";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -482,6 +483,8 @@ function TxForm({
 
 export default function TransactionsPage() {
   const queryClient = useQueryClient();
+  const location = useLocation();
+  const [openTxId] = useState<string | null>(() => location.state?.openTxId ?? null);
   const [editing, setEditing] = useState<Transaction | null>(null);
   const [addingNew, setAddingNew] = useState(false);
   const [filterType, setFilterType] = useState("");
@@ -533,6 +536,16 @@ export default function TransactionsPage() {
   // Lookup maps for display
   const categoryMap = Object.fromEntries(categories.map((c) => [c.id, c.name]));
   const channelMap = Object.fromEntries(channels.map((c) => [c.id, c.name]));
+
+  // If navigated from dashboard with a transaction ID, open its edit panel once data loads
+  useEffect(() => {
+    if (!openTxId || transactions.length === 0) return;
+    const tx = transactions.find((t) => t.id === openTxId);
+    if (tx) {
+      setEditing(tx);
+      setAddingNew(false);
+    }
+  }, [openTxId, transactions]);
 
   function openEdit(tx: Transaction) {
     setEditing(tx);

@@ -1,5 +1,8 @@
 // Calendar routes:
-//   GET    /api/event-types        — list all event types (seeded reference data)
+//   GET    /api/event-types        — list all event types
+//   POST   /api/event-types        — create an event type
+//   PUT    /api/event-types/:id    — update an event type
+//   DELETE /api/event-types/:id    — delete an event type
 //   GET    /api/events             — list events (filter by date range)
 //   POST   /api/events             — create an event
 //   GET    /api/events/:id         — get one event
@@ -14,6 +17,12 @@ import { calendarEvents, eventTypes } from "../db/schema/index.js";
 import { eq, and, gte, lte, asc } from "drizzle-orm";
 
 // ── Zod schemas ────────────────────────────────────────────────────────────────
+
+const EventTypeSchema = z.object({
+  name: z.string().min(1),
+  color: z.string().optional(),
+  category: z.enum(["writing", "editing", "marketing", "event", "admin", "commission", "other"]).optional(),
+});
 
 const CreateEventSchema = z.object({
   title: z.string().min(1, "Title is required"),
@@ -35,10 +44,34 @@ const UpdateEventSchema = CreateEventSchema.partial();
 export async function calendarRoutes(app: FastifyInstance) {
   app.addHook("preHandler", app.authenticate);
 
-  // ── GET /api/event-types ─────────────────────────────────────────────────────
-  // Read-only — these are seeded; users won't add them in Phase 1.
-  app.get("/event-types", async () => {
-    return db.select().from(eventTypes).orderBy(asc(eventTypes.name)).all();
+  // ── Event types CRUD ─────────────────────────────────────────────────────────
+
+  app.get("/event-types", async () =>
+    db.select().from(eventTypes).orderBy(asc(eventTypes.name)).all()
+  );
+
+  app.post("/event-types", async (req, reply) => {
+    const body = EventTypeSchema.parse(req.body);
+    const id = ulid();
+    db.insert(eventTypes).values({ id, ...body }).run();
+    return reply.code(201).send(
+      db.select().from(eventTypes).where(eq(eventTypes.id, id)).get()
+    );
+  });
+
+  app.put("/event-types/:id", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const body = EventTypeSchema.partial().parse(req.body);
+    db.update(eventTypes).set(body).where(eq(eventTypes.id, id)).run();
+    const row = db.select().from(eventTypes).where(eq(eventTypes.id, id)).get();
+    if (!row) return reply.code(404).send({ error: "Not found" });
+    return row;
+  });
+
+  app.delete("/event-types/:id", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    db.delete(eventTypes).where(eq(eventTypes.id, id)).run();
+    return reply.code(204).send();
   });
 
   // ── GET /api/events ──────────────────────────────────────────────────────────

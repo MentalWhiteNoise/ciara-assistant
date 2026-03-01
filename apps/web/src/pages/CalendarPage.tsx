@@ -4,8 +4,9 @@
 // for events (using the event type's color from the seed data).
 // Click any day to view its events. Use the slide-over to add/edit events.
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useLocation } from "react-router-dom";
 import { apiFetch } from "@/lib/api";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -63,8 +64,8 @@ const calApi = {
 function getMonthGrid(year: number, month: number): Date[] {
   const firstDay = new Date(year, month, 1);
 
-  // Start grid on Monday (ISO week)
-  const startOffset = (firstDay.getDay() + 6) % 7; // 0=Mon, 6=Sun
+  // Start grid on Sunday (0=Sun, 1=Mon, ..., 6=Sat)
+  const startOffset = firstDay.getDay(); // getDay() returns 0 for Sunday
   const gridStart = new Date(firstDay);
   gridStart.setDate(firstDay.getDate() - startOffset);
 
@@ -374,15 +375,26 @@ const MONTH_NAMES = [
   "January","February","March","April","May","June",
   "July","August","September","October","November","December",
 ];
-const DAY_HEADERS = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+const DAY_HEADERS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 const TODAY_STR = new Date().toISOString().slice(0, 10);
 
 export default function CalendarPage() {
   const queryClient = useQueryClient();
+  const location = useLocation();
+  const [openEventId] = useState<string | null>(() => location.state?.openEventId ?? null);
   const now = new Date();
-  const [year, setYear] = useState(now.getFullYear());
-  const [month, setMonth] = useState(now.getMonth()); // 0-indexed
-  const [selectedDay, setSelectedDay] = useState<string | null>(TODAY_STR);
+  // If navigated from dashboard, jump straight to that event's month
+  const [year, setYear] = useState(() => {
+    const d = location.state?.eventDate;
+    return d ? new Date(d + "T12:00:00").getFullYear() : now.getFullYear();
+  });
+  const [month, setMonth] = useState(() => {
+    const d = location.state?.eventDate;
+    return d ? new Date(d + "T12:00:00").getMonth() : now.getMonth();
+  });
+  const [selectedDay, setSelectedDay] = useState<string | null>(() =>
+    location.state?.eventDate ?? TODAY_STR
+  );
   const [editing, setEditing] = useState<CalendarEvent | null>(null);
   const [addingNew, setAddingNew] = useState(false);
   const [newEventDate, setNewEventDate] = useState(TODAY_STR);
@@ -405,6 +417,17 @@ export default function CalendarPage() {
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ["events"] });
   };
+
+  // If navigated from dashboard with an event ID, open its edit panel once data loads
+  useEffect(() => {
+    if (!openEventId || events.length === 0) return;
+    const ev = events.find((e) => e.id === openEventId);
+    if (ev) {
+      setEditing(ev);
+      setAddingNew(false);
+      setSelectedDay(ev.startAt.slice(0, 10));
+    }
+  }, [openEventId, events]);
 
   const createMutation = useMutation({
     mutationFn: calApi.createEvent,

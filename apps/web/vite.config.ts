@@ -12,6 +12,7 @@ export default defineConfig({
     },
   },
   server: {
+    host: true, // bind to 0.0.0.0 so LAN devices can reach it
     port: 5173,
     // Proxy API requests to the backend during development.
     // When the frontend calls /api/..., Vite forwards it to http://localhost:3001
