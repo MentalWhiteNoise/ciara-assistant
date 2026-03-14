@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Indigo rounded-square background -->
+  <rect width="512" height="512" rx="96" fill="#4f46e5"/>
+  <!-- White "C" — open arc formed by subtracting a smaller circle from a larger one -->
+  <path d="M 310 148
+           A 130 130 0 1 0 310 364
+           L 310 320
+           A 86 86 0 1 1 310 192
+           Z"
+        fill="white"/>
+</svg>

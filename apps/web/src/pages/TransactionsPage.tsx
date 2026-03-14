@@ -1,10 +1,10 @@
 // TransactionsPage — manual income and expense entry.
 // Displays a filterable table of transactions with an add/edit slide-over form.
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "react-router-dom";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, apiUpload } from "@/lib/api";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -44,6 +44,17 @@ interface Product {
   id: string;
   title: string;
   type: string;
+}
+
+interface Attachment {
+  id: string;
+  transactionId: string | null;
+  filePath: string;
+  fileType: "receipt" | "invoice" | "contract" | "other" | null;
+  originalName: string | null;
+  mimeType: string | null;
+  sizeBytes: number | null;
+  createdAt: string;
 }
 
 interface TxFormData {
@@ -211,10 +222,132 @@ function SlideOver({
   );
 }
 
+// ── Attachment panel ────────────────────────────────────────────────────────────
+// Shown inside the edit slide-over when a transaction already exists in the DB.
+
+function formatBytes(bytes: number | null) {
+  if (!bytes) return "";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function AttachmentPanel({ txId }: { txId: string }) {
+  const queryClient = useQueryClient();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState("");
+
+  const { data: attachmentList = [] } = useQuery({
+    queryKey: ["attachments", txId],
+    queryFn: () => apiFetch<Attachment[]>(`/api/transactions/${txId}/attachments`),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) =>
+      apiFetch<void>(`/api/attachments/${id}`, { method: "DELETE" }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["attachments", txId] }),
+  });
+
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    setUploadError("");
+
+    const fd = new FormData();
+    fd.append("file", file);
+
+    try {
+      await apiUpload(`/api/transactions/${txId}/attachments`, fd);
+      queryClient.invalidateQueries({ queryKey: ["attachments", txId] });
+    } catch (err) {
+      setUploadError((err as Error).message);
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  }
+
+  return (
+    <div className="border-t border-gray-100 pt-4">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-sm font-medium text-gray-700">Receipts &amp; Attachments</span>
+        <button
+          type="button"
+          onClick={() => fileRef.current?.click()}
+          disabled={uploading}
+          className="text-xs text-indigo-600 hover:text-indigo-800 font-medium disabled:opacity-50"
+        >
+          {uploading ? "Uploading…" : "+ Attach file"}
+        </button>
+      </div>
+
+      {/* Hidden file input — images and PDFs only */}
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*,.pdf"
+        onChange={handleFileChange}
+        className="hidden"
+      />
+
+      {uploadError && (
+        <p className="text-xs text-red-600 mb-2">{uploadError}</p>
+      )}
+
+      {attachmentList.length === 0 ? (
+        <p className="text-xs text-gray-400">No attachments yet.</p>
+      ) : (
+        <ul className="space-y-1.5">
+          {attachmentList.map((att) => (
+            <li
+              key={att.id}
+              className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg"
+            >
+              <span className="text-base flex-shrink-0">
+                {att.mimeType?.startsWith("image/") ? "🖼" : "📄"}
+              </span>
+              <a
+                href={`/api/attachments/${att.id}/file`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 min-w-0 hover:underline"
+              >
+                <div className="text-xs font-medium text-gray-900 truncate">
+                  {att.originalName ?? att.filePath}
+                </div>
+                <div className="text-xs text-gray-400">
+                  {att.fileType} · {formatBytes(att.sizeBytes)}
+                </div>
+              </a>
+              <button
+                type="button"
+                onClick={() => {
+                  if (confirm(`Delete "${att.originalName ?? att.filePath}"?`)) {
+                    deleteMutation.mutate(att.id);
+                  }
+                }}
+                className="text-gray-300 hover:text-red-500 transition-colors text-lg leading-none flex-shrink-0"
+                title="Delete attachment"
+              >
+                ×
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 // ── Transaction form ───────────────────────────────────────────────────────────
 
 function TxForm({
   initial,
+  transactionId,
   categories,
   channels,
   products,
@@ -224,6 +357,7 @@ function TxForm({
   error,
 }: {
   initial: TxFormData;
+  transactionId?: string;  // set when editing; enables attachment upload
   categories: Category[];
   channels: Channel[];
   products: Product[];
@@ -448,6 +582,9 @@ function TxForm({
             className={`${inputClass} resize-none`}
           />
         </div>
+
+        {/* Attachments — only shown when editing an existing transaction */}
+        {transactionId && <AttachmentPanel txId={transactionId} />}
 
         {error && (
           <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
@@ -779,6 +916,7 @@ export default function TransactionsPage() {
         <TxForm
           key={editing?.id ?? "new"}
           initial={formInitial}
+          transactionId={editing?.id}
           categories={categories}
           channels={channels}
           products={products}

@@ -2,6 +2,11 @@ import Fastify from "fastify";
 import cors from "@fastify/cors";
 import cookie from "@fastify/cookie";
 import jwt from "@fastify/jwt";
+import multipart from "@fastify/multipart";
+import { readFileSync } from "fs";
+import { existsSync } from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 import { getJwtSecret } from "./auth/jwt-secret.js";
 import { registerAuthMiddleware } from "./auth/middleware.js";
 import { authRoutes } from "./routes/auth.js";
@@ -13,11 +18,28 @@ import { calendarRoutes } from "./routes/calendar.js";
 import { orderRoutes } from "./routes/orders.js";
 import { checklistRoutes } from "./routes/checklists.js";
 import { checklistTemplateRoutes } from "./routes/checklist-templates.js";
+import { attachmentRoutes } from "./routes/attachments.js";
 import { settingsRoutes } from "./routes/settings.js";
 import { pruneExpiredTokens } from "./auth/tokens.js";
 
+// ── TLS ──────────────────────────────────────────────────────────────────────
+// Load mkcert certs from data/ if present. Falls back to HTTP if not found.
+// data/ is three levels above apps/api/src/ (or apps/api/dist/ in production).
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const dataDir = path.resolve(__dirname, "../../../data");
+
+function loadTls() {
+  const certFile = path.join(dataDir, "ciara.pem");
+  const keyFile  = path.join(dataDir, "ciara-key.pem");
+  if (!existsSync(certFile) || !existsSync(keyFile)) return null;
+  return { cert: readFileSync(certFile), key: readFileSync(keyFile) };
+}
+
+const tls = loadTls();
+
 export async function buildApp() {
   const app = Fastify({
+    https: tls ?? undefined,
     logger: {
       transport:
         process.env.NODE_ENV !== "production"
@@ -27,6 +49,11 @@ export async function buildApp() {
   });
 
   // ── Plugins ──────────────────────────────────────────────────────────────
+
+  // Multipart file upload support — used by the attachment upload route.
+  await app.register(multipart, {
+    limits: { fileSize: 10 * 1024 * 1024, files: 1 }, // 10 MB max, one file at a time
+  });
 
   await app.register(cors, {
     origin: [
@@ -78,6 +105,7 @@ export async function buildApp() {
   await app.register(orderRoutes, { prefix: "/api/orders" });
   await app.register(checklistRoutes, { prefix: "/api/checklists" });
   await app.register(checklistTemplateRoutes, { prefix: "/api/checklist-templates" });
+  await app.register(attachmentRoutes, { prefix: "/api" });
   await app.register(referenceRoutes, { prefix: "/api" });
   await app.register(settingsRoutes, { prefix: "/api" });
 
@@ -91,9 +119,10 @@ async function start() {
 
   try {
     await app.listen({ port, host });
-    console.log(`\n  Ciara API running at http://localhost:${port}`);
-    console.log(`  Health:  http://localhost:${port}/health`);
-    console.log(`  Auth:    http://localhost:${port}/auth/status\n`);
+    const proto = tls ? "https" : "http";
+    console.log(`\n  Ciara API running at ${proto}://localhost:${port}`);
+    console.log(`  Health:  ${proto}://localhost:${port}/health`);
+    console.log(`  Auth:    ${proto}://localhost:${port}/auth/status\n`);
   } catch (err) {
     app.log.error(err);
     process.exit(1);

@@ -119,6 +119,46 @@ async function throwApiError(response: Response): Promise<never> {
   throw new ApiError(response.status, message, body);
 }
 
+// Upload a file via multipart/form-data.
+// Unlike apiFetch, this must NOT set Content-Type — the browser sets it
+// automatically with the multipart boundary so the server can parse it.
+export async function apiUpload<T = unknown>(
+  path: string,
+  formData: FormData
+): Promise<T> {
+  const token = useAuthStore.getState().accessToken;
+
+  const headers = new Headers();
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+
+  const response = await fetch(`${API_BASE}${path}`, {
+    method: "POST",
+    headers,
+    body: formData,
+    credentials: "include",
+  });
+
+  if (response.status === 401) {
+    const newToken = await refreshAccessToken();
+    if (newToken) {
+      headers.set("Authorization", `Bearer ${newToken}`);
+      const retried = await fetch(`${API_BASE}${path}`, {
+        method: "POST",
+        headers,
+        body: formData,
+        credentials: "include",
+      });
+      if (!retried.ok) await throwApiError(retried);
+      return retried.json() as Promise<T>;
+    }
+    useAuthStore.getState().clearAuth();
+    throw new ApiError(401, "Session expired. Please log in again.");
+  }
+
+  if (!response.ok) await throwApiError(response);
+  return response.json() as Promise<T>;
+}
+
 // ── Auth-specific API calls ───────────────────────────────────────────────────
 
 export const authApi = {

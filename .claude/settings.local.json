@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "Bash(pnpm install)",
-      "Bash(pnpm typecheck)"
+      "Bash(pnpm typecheck)",
+      "Bash(pnpm db:generate)",
+      "Bash(pnpm db:migrate)"
     ]
   }
 }
