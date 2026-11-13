@@ -294,6 +294,23 @@ Prevents importing the same transaction twice.
 
 ---
 
+### KDP report tables (`apps/api/src/db/schema/kdp.ts`)
+
+| Table | Holds | Re-import rule |
+|-------|-------|----------------|
+| `kdp_imports` | One row per uploaded file (type, SHA-256, `parser_version`, coverage, counts, warnings JSON) | identical file skipped unless parsed by an older parser version |
+| `kdp_payments` | One payout per (sales month, marketplace, payment #); FX rate, USD payout, status, `transaction_id` | upsert on that key |
+| `kdp_payment_lines` | Breakdown per payout: Sales / Paperback Sales / Kindle+ Royalties | replaced with parent |
+| `kdp_statement_lines` | Monthly statement lines by title × marketplace × format (`kenp` = page reads; `earnings` NULL until KDP sets the KU rate) | month replaced |
+| `kdp_daily_sales` | Daily estimated royalties. `date` = royalty date; `order_date` = customer order date (print: from Paperback/Hardcover sheets, ~2 days earlier; eBook: same as `date`). Group by `order_date` for event analysis | date range replaced |
+| `kdp_daily_kenp` | Daily KU pages read (Orders report, KENP sheet) | date range replaced |
+| `reminder_keys` | Keys of auto-created reminders (e.g. `kdp:monthly:2026-10`) so they're created once | — |
+
+Amounts are in the marketplace currency unless the column says payout/USD. Only paid payouts
+become `transactions` rows, so statement data is never double-counted in income reports.
+
+---
+
 ## ID Strategy: ULIDs
 
 All primary keys use **ULIDs** (Universally Unique Lexicographically Sortable Identifiers).

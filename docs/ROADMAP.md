@@ -45,7 +45,7 @@ track tasks, and view basic reports. No integrations yet.
 ### Integrations
 - [ ] PayPal connector (OAuth2, auto-import transactions)
 - [ ] Google Calendar sync (OAuth2, two-way)
-- [ ] Amazon KDP CSV connector (upload report → auto-parse)
+- [x] Amazon KDP report import (upload .xlsx → auto-detect + parse; monthly reminder checklist)
 - [ ] Ingram Spark CSV connector
 - [ ] Scheduled sync jobs (daily auto-import, configurable schedule)
 

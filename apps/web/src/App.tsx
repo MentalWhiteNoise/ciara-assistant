@@ -29,6 +29,7 @@ import ReportsPage from "@/pages/ReportsPage";
 import OrdersPage from "@/pages/OrdersPage";
 import ChecklistsPage from "@/pages/ChecklistsPage";
 import SettingsPage from "@/pages/SettingsPage";
+import KdpPage from "@/pages/KdpPage";
 import PlaceholderPage from "@/pages/PlaceholderPage";
 
 export default function App() {
@@ -56,6 +57,7 @@ export default function App() {
             <Route path="/transactions" element={<TransactionsPage />} />
             <Route path="/expenses" element={<PlaceholderPage />} />
             <Route path="/income" element={<PlaceholderPage />} />
+            <Route path="/kdp" element={<KdpPage />} />
 
             {/* Catalog */}
             <Route path="/products" element={<ProductsPage />} />

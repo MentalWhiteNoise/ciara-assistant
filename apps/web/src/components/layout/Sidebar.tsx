@@ -31,6 +31,7 @@ const NAV_GROUPS: { heading: string; items: NavItem[] }[] = [
       { label: "Transactions", to: "/transactions", icon: "⇄" },
       { label: "Expenses", to: "/expenses", icon: "↓" },
       { label: "Income", to: "/income", icon: "↑" },
+      { label: "KDP Royalties", to: "/kdp", icon: "◆" },
     ],
   },
   {

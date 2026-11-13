@@ -57,12 +57,23 @@ interface FetchOptions {
 - **Dedup key:** PayPal transaction ID
 - **Notes:** PayPal fees are imported as separate expense transactions
 
-### Amazon KDP
-- **Auth:** CSV upload (no public API available)
-- **What it imports:** KDP Sales & Royalties Reports (uploaded by user monthly)
-- **Dedup key:** Row hash (date + title + units + royalty)
-- **Future option:** Playwright-based automated report download
-- **Notes:** KDP reports show royalties (net), not gross sales
+### Amazon KDP  ✅ built
+- **Auth:** none — owner uploads KDP's .xlsx reports on Money → KDP Royalties (`/kdp`)
+- **Code:** `apps/api/src/connectors/kdp/` (xlsx.ts reader, parse.ts, importer.ts, schedule.ts), route `routes/kdp.ts`
+- **What it imports** (report type auto-detected from the workbook's sheets):
+  - **Payments** (Statements → Payments, All Sales Periods) → `kdp_payments` + `kdp_payment_lines`.
+    Each *Paid* payout → one `sale` transaction (category Royalties, channel Amazon KDP).
+    Dedup key: `payment:{salesMonth}:{marketplace}:{paymentNumber}` in `import_dedup_log`.
+  - **Monthly statement** (Statements → Prior Months' Royalties, Total Earnings sheet) → `kdp_statement_lines`; re-import replaces the month.
+  - **Orders** (identical file to the KENP and Dashboard downloads) → `kdp_daily_sales` + `kdp_daily_kenp`; re-import replaces the date range.
+    Required monthly (for event correlation). Print rows come from the Paperback/Hardcover sheets and carry `order_date`;
+    eBook `order_date` = royalty date. Ranges longer than ~2 months come back as monthly totals and are rejected.
+- **Same-file re-upload:** detected by SHA-256 + `parser_version` in `kdp_imports` (a file parsed by an older parser is re-imported); originals kept in `data/imports/kdp/`
+- **Reminders:** on the 10th, a "KDP reports — {last month}" checklist is created (scheduled 15th, due 20th);
+  tasks tick off automatically on import. One-time backfill task for missing historical statements.
+  `reminder_keys` stops deleted reminders being re-created. Job runs at startup + every 6h.
+- **Notes:** KDP reports royalties (net), not gross sales. Statement KENP earnings are N/A until ~15th of
+  the following month (flagged as provisional). Payouts arrive ~60 days after the sales month.
 
 ### Ingram Spark
 - **Auth:** CSV upload
@@ -163,7 +174,7 @@ For any source not yet connected:
 
 Amazon does not provide a public API for KDP sales data as of 2025.
 Options:
-1. **Manual CSV upload** (Phase 1/2): User downloads report from KDP dashboard monthly, uploads to Ciara
+1. **Manual .xlsx upload** (built): User downloads reports from KDP monthly, uploads to Ciara
 2. **Playwright scraper** (Phase 3, optional): Automated browser that logs into KDP, downloads the report, and hands the file to the transformer
    - Requires storing KDP credentials in vault
    - Fragile (breaks if KDP changes their HTML)

@@ -149,6 +149,49 @@ const TX_PREFIX: Record<string, string> = {
   sale: "+", expense: "−", refund: "−", transfer: "",
 };
 
+// KDP reminder banner — shows when a monthly KDP report is due.
+interface KdpReport { state: "up_to_date" | "due" | "never"; detail: string }
+interface KdpStatusLite {
+  status: { statement: KdpReport; payments: KdpReport; orders: KdpReport; missingMonths: string[] };
+}
+
+function KdpBanner() {
+  const { data } = useQuery({
+    queryKey: ["kdp-status"],
+    queryFn: () => apiFetch<KdpStatusLite>("/api/kdp/status"),
+  });
+  if (!data) return null;
+  const { statement, payments, orders } = data.status;
+  const due = [
+    payments.state !== "up_to_date" && "Payments",
+    statement.state !== "up_to_date" && "statement",
+    orders.state !== "up_to_date" && "Orders",
+  ].filter(Boolean) as string[];
+  const dueText = due.length === 1 ? due[0] : `${due.slice(0, -1).join(", ")} and ${due[due.length - 1]}`;
+  if (due.length === 0) return null;
+
+  const neverImported = statement.state === "never" && payments.state === "never" && orders.state === "never";
+  return (
+    <Link
+      to="/kdp"
+      className="mb-6 flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 hover:bg-amber-100 transition-colors"
+    >
+      <span className="text-amber-600 text-lg leading-none">◆</span>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-amber-900">
+          {neverImported ? "Set up Amazon KDP imports" : `KDP reports ready to download: ${dueText}`}
+        </p>
+        <p className="text-xs text-amber-800 truncate">
+          {neverImported
+            ? "Download your KDP reports and drop them in — instructions on the page."
+            : [statement, payments, orders].find((r) => r.state !== "up_to_date")?.detail}
+        </p>
+      </div>
+      <span className="text-xs font-medium text-amber-800 flex-shrink-0">Open →</span>
+    </Link>
+  );
+}
+
 // ── Main page ──────────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
@@ -234,6 +277,8 @@ export default function DashboardPage() {
           })}
         </p>
       </div>
+
+      <KdpBanner />
 
       {/* Stat cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">

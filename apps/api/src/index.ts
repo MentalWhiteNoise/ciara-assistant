@@ -23,6 +23,8 @@ import { attachmentRoutes } from "./routes/attachments.js";
 import { settingsRoutes } from "./routes/settings.js";
 import { vaultRoutes } from "./routes/vault.js";
 import { syncRoutes } from "./routes/sync.js";
+import { kdpRoutes } from "./routes/kdp.js";
+import { refreshKdpReminders } from "./connectors/kdp/schedule.js";
 import { pruneExpiredTokens } from "./auth/tokens.js";
 
 // ── TLS ──────────────────────────────────────────────────────────────────────
@@ -94,6 +96,19 @@ export async function buildApp() {
   // Prune stale refresh tokens from the DB each time the server starts
   pruneExpiredTokens();
 
+  // Report-download reminders (KDP monthly checklist etc.). Creates any reminder
+  // that has come due and ticks off ones already satisfied. Runs now and every
+  // 6 hours, so a server left running across the 10th still creates it.
+  const runReminders = () => {
+    try {
+      refreshKdpReminders();
+    } catch (err) {
+      app.log.error(err, "Reminder refresh failed");
+    }
+  };
+  runReminders();
+  setInterval(runReminders, 6 * 60 * 60 * 1000).unref();
+
   // ── Routes ───────────────────────────────────────────────────────────────
 
   // Health check — no auth required
@@ -118,6 +133,7 @@ export async function buildApp() {
   await app.register(settingsRoutes, { prefix: "/api" });
   await app.register(vaultRoutes, { prefix: "/api" });
   await app.register(syncRoutes, { prefix: "/api" });
+  await app.register(kdpRoutes, { prefix: "/api" });
 
   return app;
 }

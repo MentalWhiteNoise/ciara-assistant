@@ -12,3 +12,4 @@ export * from "./inventory";    // also exports: inventoryMovements
 export * from "./assets";       // also exports: mileageLogs
 export * from "./orders";       // also exports: orderItems
 export * from "./sync";         // also exports: importDedupLog
+export * from "./kdp";            // KDP report imports + reminder_keys
