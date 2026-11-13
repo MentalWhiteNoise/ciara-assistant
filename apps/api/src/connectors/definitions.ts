@@ -36,12 +36,23 @@ export interface IntegrationDefinition {
 
 export const INTEGRATIONS: IntegrationDefinition[] = [
   {
+    id: "gmail",
+    displayName: "Reports inbox (Gmail)",
+    description: "Shared inbox that receives forwarded reports — IngramSpark and other email-only services",
+    authType: "api_key",
+    fields: [
+      { key: "email", label: "Gmail address", secret: false },
+      { key: "appPassword", label: "App password", secret: true },
+    ],
+    help: "Sign in to the shared Gmail account → myaccount.google.com → Security → turn on 2-Step Verification (required), then go to myaccount.google.com/apppasswords, name it \"Ciara\" and create. Paste the 16-letter password here (spaces are fine). Ciara opens the mailbox read-only: it never sends, deletes, moves or marks mail as read. To cut access at any time, delete the app password in Google.",
+  },
+  {
     id: "squarespace",
     displayName: "Squarespace",
     description: "Website and direct sales — orders, products, refunds",
     authType: "api_key",
     fields: [{ key: "apiKey", label: "API key", secret: true }],
-    help: "Squarespace → Settings → Developer API Keys. Give it read-only access to Orders and Transactions. (The Commerce APIs may need a Commerce plan.)",
+    help: "Squarespace → Settings → Advanced → Developer API Keys → Generate Key. Under Commerce APIs give Orders, Transactions and Products \"Read Only\" (never Read and Write). The key is shown only once — paste it here. Ciara only ever reads; its Squarespace code refuses anything but GET requests.",
   },
   {
     id: "paypal",

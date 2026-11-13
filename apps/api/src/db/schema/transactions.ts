@@ -2,6 +2,7 @@ import { sqliteTable, text, real, integer, type AnySQLiteColumn } from "drizzle-
 import { sql } from "drizzle-orm";
 import { products } from "./products";
 import { categories, channels } from "./categories";
+import { orders } from "./orders";
 
 export const transactions = sqliteTable("transactions", {
   id: text("id").primaryKey(),
@@ -38,6 +39,10 @@ export const transactions = sqliteTable("transactions", {
   relatedTransactionId: text("related_transaction_id").references(
     (): AnySQLiteColumn => transactions.id
   ),
+  // The store order this money belongs to (sale, its fee, refunds). Lets a
+  // report split an order's gross into products / shipping / tax and net it
+  // against fees and refunds.
+  orderId: text("order_id").references(() => orders.id),
   // The other party's stable ID in the source system (e.g. PayPal account ID).
   // Payee rules match on this, since display names can change.
   counterpartyId: text("counterparty_id"),

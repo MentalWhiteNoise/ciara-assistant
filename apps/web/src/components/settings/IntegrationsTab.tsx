@@ -36,7 +36,12 @@ interface Integration {
 interface TestResult {
   ok: boolean;
   message: string;
-  details?: { environment?: string; grantedScopes?: string[] };
+  details?: {
+    environment?: string;
+    grantedScopes?: string[];
+    /** Squarespace: API name → "ok" | "no permission" | "error: …" */
+    permissions?: Record<string, string>;
+  };
 }
 
 interface IntegrationsResponse {
@@ -95,6 +100,9 @@ function UnlockPanel({ onUnlocked }: { onUnlocked: () => void }) {
 }
 
 // ── One API-key integration card ────────────────────────────────────────────────
+
+// Integrations whose "Test connection" is implemented on the server.
+const TESTABLE = new Set(["gmail", "paypal", "squarespace"]);
 
 function ApiKeyCard({ integration, locked }: { integration: Integration; locked: boolean }) {
   const queryClient = useQueryClient();
@@ -166,7 +174,7 @@ function ApiKeyCard({ integration, locked }: { integration: Integration; locked:
           >
             {integration.connected ? "Replace credentials" : "Connect"}
           </button>
-          {integration.connected && integration.id === "paypal" && (
+          {integration.connected && TESTABLE.has(integration.id) && (
             <button
               onClick={() => test.mutate()}
               disabled={test.isPending}
@@ -190,6 +198,7 @@ function ApiKeyCard({ integration, locked }: { integration: Integration; locked:
 
       {!editing && test.data && <TestResultPanel result={test.data} />}
       {!editing && !locked && integration.connected && integration.id === "paypal" && <PayPalSyncPanel />}
+      {!editing && !locked && integration.connected && integration.id === "squarespace" && <SquarespaceSyncPanel />}
       {!editing && test.error && (
         <p className="text-sm text-red-600 mt-3">{(test.error as Error).message}</p>
       )}
@@ -262,6 +271,16 @@ function TestResultPanel({ result }: { result: TestResult }) {
       }`}
     >
       <p>{result.message}</p>
+      {result.details?.permissions && (
+        <ul className="mt-2 text-xs space-y-0.5">
+          {Object.entries(result.details.permissions).map(([api, status]) => (
+            <li key={api}>
+              {status === "ok" ? "✓" : "✗"} {api}
+              {status !== "ok" && <span className="opacity-80"> — {status}</span>}
+            </li>
+          ))}
+        </ul>
+      )}
       {scopes.length > 0 && (
         <details className="mt-2">
           <summary className="cursor-pointer text-xs">
@@ -350,6 +369,195 @@ function PayPalSyncPanel() {
       </div>
       {start.error && <p className="text-xs text-red-600">{(start.error as Error).message}</p>}
       {!running && (data?.rawRecordCount ?? 0) > 0 && <PayPalImportPanel />}
+    </div>
+  );
+}
+
+// ── Squarespace download ──────────────────────────────────────────────────────
+
+type SquarespaceJob = Omit<SyncJob, "config"> & {
+  config: {
+    mode: string;
+    start?: string;
+    end: string;
+    current?: string;
+    completedKinds?: string[];
+    recordsUpdated?: number;
+  } | null;
+};
+
+const SQ_KIND_LABELS: Record<string, string> = { order: "orders", transaction: "transactions", product: "products" };
+
+function SquarespaceSyncPanel() {
+  const queryClient = useQueryClient();
+  const { data } = useQuery({
+    queryKey: ["sync", "squarespace"],
+    queryFn: () =>
+      apiFetch<{ jobs: SquarespaceJob[]; rawRecordCount: number; rawByKind?: Record<string, number> }>(
+        "/api/sync/squarespace"
+      ),
+    refetchInterval: (q) => (q.state.data?.jobs[0]?.status === "running" ? 2000 : false),
+  });
+
+  const start = useMutation({
+    mutationFn: (mode: "full" | "incremental") =>
+      apiFetch("/api/sync/squarespace", { method: "POST", body: JSON.stringify({ mode }) }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["sync", "squarespace"] }),
+  });
+
+  const latest = data?.jobs[0];
+  const running = latest?.status === "running";
+  const hasSucceeded = data?.jobs.some((j) => j.status === "success");
+  const fmt = (iso?: string | null) => (iso ? new Date(iso).toLocaleDateString() : "");
+  const byKind = data?.rawByKind ?? {};
+
+  return (
+    <div className="mt-4 border-t border-gray-100 pt-3 space-y-2">
+      <p className="text-xs text-gray-500">
+        Downloaded:{" "}
+        {Object.keys(SQ_KIND_LABELS).map((k, i) => (
+          <span key={k}>
+            {i > 0 && " · "}
+            <span className="font-medium text-gray-700">{byKind[k] ?? 0}</span> {SQ_KIND_LABELS[k]}
+          </span>
+        ))}{" "}
+        (raw history only — nothing is added to Transactions yet)
+      </p>
+
+      {latest && (
+        <p className={`text-xs ${latest.status === "failed" ? "text-red-600" : "text-gray-500"}`}>
+          {running && <>Downloading {SQ_KIND_LABELS[latest.config?.current ?? ""] ?? "…"} · {latest.recordsImported} new so far</>}
+          {latest.status === "success" && <>Last sync {fmt(latest.completedAt)}: {latest.recordsImported} new, {latest.config?.recordsUpdated ?? 0} updated, {latest.recordsSkipped} unchanged</>}
+          {latest.status === "failed" && <>Last sync failed: {latest.errorMessage}</>}
+        </p>
+      )}
+
+      <div className="flex gap-3">
+        <button
+          onClick={() => start.mutate(hasSucceeded ? "incremental" : "full")}
+          disabled={running || start.isPending}
+          className="text-sm font-medium text-indigo-600 hover:text-indigo-700 disabled:text-indigo-300"
+        >
+          {hasSucceeded ? "Sync new activity" : "Download full history"}
+        </button>
+        {hasSucceeded && (
+          <button
+            onClick={() => start.mutate("full")}
+            disabled={running || start.isPending}
+            className="text-sm text-gray-500 hover:text-gray-800 disabled:text-gray-300"
+          >
+            Re-download everything
+          </button>
+        )}
+      </div>
+      {start.error && <p className="text-xs text-red-600">{(start.error as Error).message}</p>}
+      {!running && (byKind.order ?? 0) > 0 && <SquarespaceImportPanel />}
+    </div>
+  );
+}
+
+interface YearBreakdown {
+  orders: number; gross: number; products: number; shipping: number;
+  tax: number; refunds: number; fees: number; net: number;
+}
+
+interface SquarespaceImportSummary {
+  ordersToProcess: number;
+  ordersNew: number;
+  ordersUpdated: number;
+  created: { sales: number; fees: number; platformFees: number; refunds: number };
+  alreadyImported: number;
+  paypalLinks: number;
+  deferred: number;
+  skipped: Record<string, number>;
+  taxFlagged: { orders: number; tax: number };
+  byYear: Record<string, YearBreakdown>;
+  byProcessor: Record<string, number>;
+}
+
+const money = (n: number) => n.toLocaleString(undefined, { style: "currency", currency: "USD" });
+
+function SquarespaceImportPanel() {
+  const queryClient = useQueryClient();
+  const preview = useQuery({
+    queryKey: ["squarespace-import-preview"],
+    queryFn: () => apiFetch<SquarespaceImportSummary>("/api/sync/squarespace/import"),
+  });
+  const run = useMutation({
+    mutationFn: () => apiFetch<SquarespaceImportSummary>("/api/sync/squarespace/import", { method: "POST", body: "{}" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["squarespace-import-preview"] });
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+    },
+  });
+
+  const s = preview.data;
+  if (!s) return null;
+  const years = Object.keys(s.byYear).sort();
+  const cols: [keyof YearBreakdown, string][] = [
+    ["gross", "Gross"], ["products", "Products"], ["shipping", "Shipping"], ["tax", "Tax"],
+    ["refunds", "Refunds"], ["fees", "Fees"], ["net", "Net"],
+  ];
+
+  return (
+    <div className="mt-3 rounded-lg bg-gray-50 p-3 space-y-2 text-xs text-gray-600">
+      <p className="font-medium text-gray-800">Website sales — gross vs net</p>
+      <div className="overflow-x-auto">
+        <table className="w-full text-right tabular-nums">
+          <thead>
+            <tr className="text-gray-500">
+              <th className="text-left font-normal">Year</th>
+              <th className="font-normal">Orders</th>
+              {cols.map(([, label]) => <th key={label} className="font-normal pl-2">{label}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {years.map((y) => (
+              <tr key={y}>
+                <td className="text-left">{y}</td>
+                <td>{s.byYear[y].orders}</td>
+                {cols.map(([k]) => (
+                  <td key={k} className={`pl-2 ${k === "net" ? "font-medium text-gray-800" : ""}`}>{money(s.byYear[y][k])}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="text-gray-500">
+        Gross = what customers paid (products + shipping + tax). Net = gross − refunds − processing fees.
+        Paid by: {Object.entries(s.byProcessor).map(([p, n]) => `${p === "SQSP_PAYMENTS" ? "Squarespace Payments" : p === "PAYPAL" ? "PayPal" : p} ${n}`).join(", ")}.
+      </p>
+
+      {s.ordersToProcess === 0 ? (
+        <p>Everything downloaded has been imported.</p>
+      ) : (
+        <>
+          <p>
+            Importing would add <b>{s.ordersNew}</b> orders{s.ordersUpdated > 0 && <> (and refresh {s.ordersUpdated})</>},{" "}
+            <b>{s.created.sales}</b> sales, <b>{s.created.fees}</b> processing fees and <b>{s.created.refunds}</b> refunds,
+            and link <b>{s.paypalLinks}</b> existing PayPal sales to their website orders (moving them to the website channel — no duplicates).
+            {s.created.platformFees > 0 && <> Also adds <b>{s.created.platformFees}</b> Squarespace 3% transaction fees on PayPal-paid orders that PayPal didn't deduct.</>}
+          </p>
+          {s.taxFlagged.orders > 0 && (
+            <p className="text-amber-700">
+              {s.taxFlagged.orders} orders collected {money(s.taxFlagged.tax)} sales tax. It stays inside the sale for now and those
+              sales are flagged in their notes until you confirm whether it was remitted.
+            </p>
+          )}
+          {s.deferred > 0 && <p className="text-amber-700">{s.deferred} PayPal-paid orders will wait until their PayPal sale is imported.</p>}
+          <button
+            onClick={() => run.mutate()}
+            disabled={run.isPending}
+            className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white text-xs font-medium rounded-lg"
+          >
+            {run.isPending ? "Importing…" : "Import into Ciara"}
+          </button>
+        </>
+      )}
+      {run.data && <p className="text-emerald-700">Imported. {run.data.created.sales} sales, {run.data.paypalLinks} PayPal sales linked.</p>}
+      {run.error && <p className="text-red-600">{(run.error as Error).message}</p>}
     </div>
   );
 }

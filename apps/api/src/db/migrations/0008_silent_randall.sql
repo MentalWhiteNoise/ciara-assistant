@@ -1,0 +1,1 @@
+ALTER TABLE `transactions` ADD `order_id` text REFERENCES orders(id);
