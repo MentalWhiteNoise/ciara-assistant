@@ -18,6 +18,7 @@ import {
   consumeRefreshToken,
   revokeAllTokens,
 } from "../auth/tokens.js";
+import { unlock as unlockVault, isUnlocked as isVaultUnlocked } from "../vault/vault.js";
 
 // How long access tokens live (15 minutes in seconds)
 const ACCESS_TOKEN_TTL = 15 * 60;
@@ -113,6 +114,21 @@ export async function authRoutes(app: FastifyInstance) {
       return reply.code(401).send({ error: "Invalid credentials" });
     }
 
+    // Unlock the secrets vault while we have the password in hand.
+    // (Creates an empty vault on first login.) Failure here must not block
+    // login — the user can still use the app and unlock from Settings.
+    let vaultUnlocked = isVaultUnlocked();
+    if (!vaultUnlocked) {
+      try {
+        vaultUnlocked = await unlockVault(body.data.password);
+        if (!vaultUnlocked) {
+          request.log.warn("Vault could not be opened with the current password");
+        }
+      } catch (err) {
+        request.log.error({ err: (err as Error).message }, "Vault unlock failed");
+      }
+    }
+
     // Issue access token (JWT) — expires in 15 minutes
     // app.jwt is registered by @fastify/jwt in the server setup
     const accessToken = (app as any).jwt.sign(
@@ -128,6 +144,7 @@ export async function authRoutes(app: FastifyInstance) {
     return {
       accessToken,
       user: { id: user.id, displayName: user.displayName },
+      vaultUnlocked,
     };
   });
 

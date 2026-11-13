@@ -41,7 +41,8 @@ Refresh token stored in httpOnly cookie
 
 ## Secrets Vault
 
-The vault is a single encrypted file: `~/.ciara/secrets.vault`
+The vault is a single encrypted file: `data/secrets.vault` (gitignored).
+Implementation: `apps/api/src/vault/vault.ts`. Routes: `apps/api/src/routes/vault.ts`.
 
 ```
 Structure (after decryption):
@@ -71,8 +72,19 @@ Encryption:
   Encoding:  Base64, stored as JSON file
 ```
 
+Actual on-disk format (v1): JSON `{ version, kdf: { algorithm, memoryCost, timeCost, parallelism, salt }, iv, ciphertext, tag }`.
+KDF parameters live in the file so they can be raised later without breaking old vaults.
+Each entry is `{ credentials, updatedAt }`, keyed by integration id (see `apps/api/src/connectors/definitions.ts`).
+
+**Lifecycle:**
+- Created empty on first successful login
+- Unlocked automatically on login (the password is in hand at that moment)
+- After a server restart it is **locked** until you log in again or unlock it from Settings → Integrations; scheduled syncs that need credentials skip while locked
+- Logging out does **not** lock it (so background syncs keep running); use "Lock vault" to lock explicitly
+- The unlock route checks the password against the login hash first, so a vault can never be created with a mistyped password
+
 **Rules:**
-- The vault is only decrypted on server startup
+- The key is derived only from the master password and held in memory only
 - Decrypted values live in memory, never written back to disk in plaintext
 - Frontend never receives raw credentials — only success/failure status
 - OAuth tokens are refreshed server-side automatically

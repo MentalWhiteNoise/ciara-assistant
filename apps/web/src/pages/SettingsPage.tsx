@@ -2,6 +2,7 @@
 //
 // Tabs:
 //   Account      — display name
+//   Integrations — connect external accounts (credentials stored in the encrypted vault)
 //   Event Types  — add / edit / delete event types (name, color, category)
 //   Categories   — add / edit / delete income & expense categories
 //   Channels     — add / edit / delete sales channels
@@ -9,6 +10,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
+import { IntegrationsTab } from "@/components/settings/IntegrationsTab";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -526,10 +528,11 @@ function ChannelsTab() {
 
 // ── Main page ──────────────────────────────────────────────────────────────────
 
-type TabKey = "account" | "event-types" | "categories" | "channels";
+type TabKey = "account" | "integrations" | "event-types" | "categories" | "channels";
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: "account", label: "Account" },
+  { key: "integrations", label: "Integrations" },
   { key: "event-types", label: "Event Types" },
   { key: "categories", label: "Categories" },
   { key: "channels", label: "Channels" },
@@ -562,6 +565,7 @@ export default function SettingsPage() {
 
       {/* Tab content */}
       {tab === "account" && <AccountTab />}
+      {tab === "integrations" && <IntegrationsTab />}
       {tab === "event-types" && <EventTypesTab />}
       {tab === "categories" && <CategoriesTab />}
       {tab === "channels" && <ChannelsTab />}

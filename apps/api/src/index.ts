@@ -1,8 +1,9 @@
-import Fastify from "fastify";
+import Fastify, { type FastifyInstance } from "fastify";
 import cors from "@fastify/cors";
 import cookie from "@fastify/cookie";
 import jwt from "@fastify/jwt";
 import multipart from "@fastify/multipart";
+import pretty from "pino-pretty";
 import { readFileSync } from "fs";
 import { existsSync } from "fs";
 import path from "path";
@@ -20,6 +21,8 @@ import { checklistRoutes } from "./routes/checklists.js";
 import { checklistTemplateRoutes } from "./routes/checklist-templates.js";
 import { attachmentRoutes } from "./routes/attachments.js";
 import { settingsRoutes } from "./routes/settings.js";
+import { vaultRoutes } from "./routes/vault.js";
+import { syncRoutes } from "./routes/sync.js";
 import { pruneExpiredTokens } from "./auth/tokens.js";
 
 // ── TLS ──────────────────────────────────────────────────────────────────────
@@ -38,15 +41,20 @@ function loadTls() {
 const tls = loadTls();
 
 export async function buildApp() {
-  const app = Fastify({
-    https: tls ?? undefined,
-    logger: {
-      transport:
-        process.env.NODE_ENV !== "production"
-          ? { target: "pino-pretty", options: { colorize: true } }
-          : undefined,
-    },
-  });
+  // In dev, pretty-print logs in the main thread. (Pino's "transport" option
+  // runs pino-pretty in a worker thread, which crashes under Node 24 + tsx.)
+  const logger =
+    process.env.NODE_ENV !== "production"
+      ? { stream: pretty({ colorize: true }) }
+      : true;
+
+  // Fastify's TypeScript types are generic over the server kind (http vs https),
+  // and our route plugins are typed against the default http server. The
+  // request/reply API is identical either way, so we present both variants
+  // under the default type rather than threading the generic through every file.
+  const app = (
+    tls ? Fastify({ https: tls, logger }) : Fastify({ logger })
+  ) as unknown as FastifyInstance;
 
   // ── Plugins ──────────────────────────────────────────────────────────────
 
@@ -108,6 +116,8 @@ export async function buildApp() {
   await app.register(attachmentRoutes, { prefix: "/api" });
   await app.register(referenceRoutes, { prefix: "/api" });
   await app.register(settingsRoutes, { prefix: "/api" });
+  await app.register(vaultRoutes, { prefix: "/api" });
+  await app.register(syncRoutes, { prefix: "/api" });
 
   return app;
 }

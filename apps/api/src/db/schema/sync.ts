@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, primaryKey } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, primaryKey, uniqueIndex, index } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 import { transactions } from "./transactions";
 
@@ -39,4 +39,27 @@ export const importDedupLog = sqliteTable(
   },
   // Composite primary key — prevents duplicates on (connector + externalId)
   (t) => [primaryKey({ columns: [t.connector, t.externalId] })]
+);
+
+// Raw records exactly as an API returned them, before we turn them into
+// transactions. Keeping the original payload means we can fix or improve the
+// normalizer later and re-run it WITHOUT downloading years of history again.
+// One row per external record; re-fetching updates it in place (e.g. a PayPal
+// payment that was "pending" and later "completed").
+export const importRawRecords = sqliteTable(
+  "import_raw_records",
+  {
+    id: text("id").primaryKey(),
+    connector: text("connector").notNull(),
+    externalId: text("external_id").notNull(),
+    occurredAt: text("occurred_at"),          // ISO, from the record itself — for date-range queries
+    payload: text("payload").notNull(),       // JSON, untouched
+    syncJobId: text("sync_job_id").references(() => syncJobs.id),
+    fetchedAt: text("fetched_at").notNull(),  // last time we downloaded it
+    normalizedAt: text("normalized_at"),      // NULL = not yet turned into a transaction
+  },
+  (t) => [
+    uniqueIndex("import_raw_records_connector_external_idx").on(t.connector, t.externalId),
+    index("import_raw_records_occurred_idx").on(t.connector, t.occurredAt),
+  ]
 );
