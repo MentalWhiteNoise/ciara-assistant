@@ -1,4 +1,4 @@
-import { sqliteTable, text, real, integer } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, real, integer, type AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 import { products } from "./products";
 import { categories, channels } from "./categories";
@@ -26,6 +26,21 @@ export const transactions = sqliteTable("transactions", {
     .default(false),
   taxCategory: text("tax_category"),          // IRS Schedule C line
   occurredAt: text("occurred_at").notNull(),  // ISO date
+  // Imported records that might be personal start as "needs_review".
+  // "personal" rows are kept (so they aren't re-imported) but excluded from reports.
+  reviewStatus: text("review_status", {
+    enum: ["confirmed", "needs_review", "personal"],
+  })
+    .notNull()
+    .default("confirmed"),
+  // Links a fee/transfer/refund to the sale or purchase it belongs to, so
+  // they can be shown combined (net) or broken out.
+  relatedTransactionId: text("related_transaction_id").references(
+    (): AnySQLiteColumn => transactions.id
+  ),
+  // The other party's stable ID in the source system (e.g. PayPal account ID).
+  // Payee rules match on this, since display names can change.
+  counterpartyId: text("counterparty_id"),
   importedAt: text("imported_at"),
   createdAt: text("created_at")
     .notNull()

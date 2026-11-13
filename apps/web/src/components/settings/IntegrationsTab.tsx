@@ -349,6 +349,97 @@ function PayPalSyncPanel() {
         )}
       </div>
       {start.error && <p className="text-xs text-red-600">{(start.error as Error).message}</p>}
+      {!running && (data?.rawRecordCount ?? 0) > 0 && <PayPalImportPanel />}
+    </div>
+  );
+}
+
+// ── Turn downloaded records into transactions ─────────────────────────────────
+
+interface ImportSummary {
+  recordsProcessed: number;
+  deferred: number;
+  skipped: Record<string, number>;
+  alreadyImported: number;
+  created: Record<string, Record<string, number>>;
+  ruleMatches: number;
+  totalsUsd: { sales: number; refunds: number; fees: number; otherExpenses: number };
+  nonUsdCount: number;
+}
+
+function sumStatus(s: ImportSummary, status: string) {
+  return Object.values(s.created).reduce((n, byStatus) => n + (byStatus[status] ?? 0), 0);
+}
+
+function PayPalImportPanel() {
+  const queryClient = useQueryClient();
+  const { data } = useQuery({
+    queryKey: ["paypal-import-preview"],
+    queryFn: () => apiFetch<{ unprocessed: number; preview: ImportSummary }>("/api/sync/paypal/import"),
+  });
+  const run = useMutation({
+    mutationFn: () => apiFetch<ImportSummary>("/api/sync/paypal/import", { method: "POST", body: "{}" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["paypal-import-preview"] });
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["review-groups"] });
+    },
+  });
+
+  const money = (n: number) => n.toLocaleString(undefined, { style: "currency", currency: "USD" });
+
+  if (run.data) {
+    const review = sumStatus(run.data, "needs_review");
+    return (
+      <div className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800">
+        Imported. {sumStatus(run.data, "confirmed")} transactions added
+        {review > 0 && (
+          <>, {review} waiting for review — <Link to="/review" className="font-medium underline">review now</Link></>
+        )}
+        .
+      </div>
+    );
+  }
+  if (!data || data.unprocessed === 0) return null;
+
+  const p = data.preview;
+  const c = (type: string) => Object.values(p.created[type] ?? {}).reduce((a, b) => a + b, 0);
+  const review = sumStatus(p, "needs_review");
+  const nothingToCreate = Object.keys(p.created).length === 0;
+
+  return (
+    <div className="rounded-lg border border-indigo-100 bg-indigo-50/50 p-3 text-sm space-y-2">
+      <p className="font-medium text-gray-900">
+        {data.unprocessed} downloaded record{data.unprocessed === 1 ? "" : "s"} not yet in Transactions
+      </p>
+      {nothingToCreate ? (
+        <p className="text-xs text-gray-600">Nothing new to add (holds, conversions or pending payments only).</p>
+      ) : (
+        <ul className="text-xs text-gray-700 space-y-0.5">
+          <li>{c("sale")} sales · {money(p.totalsUsd.sales)}</li>
+          <li>{c("expense")} expenses · {money(p.totalsUsd.fees)} PayPal/platform fees + {money(p.totalsUsd.otherExpenses)} other</li>
+          {c("refund") > 0 && <li>{c("refund")} refunds · {money(p.totalsUsd.refunds)}</li>}
+          {c("transfer") > 0 && <li>{c("transfer")} bank transfers (not counted as income or expense)</li>}
+          {review > 0 && (
+            <li className="text-amber-700">
+              {review} will need review (possibly personal) — left out of reports until you decide
+            </li>
+          )}
+          {p.ruleMatches > 0 && <li>{p.ruleMatches} filed automatically by your payee rules</li>}
+          {p.deferred > 0 && <li>{p.deferred} pending in PayPal — will import once they complete</li>}
+          {p.nonUsdCount > 0 && <li className="text-amber-700">{p.nonUsdCount} in a foreign currency with no USD conversion</li>}
+        </ul>
+      )}
+      {!nothingToCreate && (
+        <button
+          onClick={() => run.mutate()}
+          disabled={run.isPending}
+          className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white text-sm font-medium rounded-lg"
+        >
+          {run.isPending ? "Importing…" : "Import into Transactions"}
+        </button>
+      )}
+      {run.error && <p className="text-xs text-red-600">{(run.error as Error).message}</p>}
     </div>
   );
 }

@@ -9,6 +9,7 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
+import { Link } from "react-router-dom";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -150,7 +151,18 @@ export default function ReportsPage() {
     queryKey: ["transactions", "report", range.from, range.to],
     queryFn: () =>
       apiFetch<Transaction[]>(
-        `/api/transactions?from=${range.from}&to=${range.to}&limit=1000`
+        `/api/transactions?from=${range.from}&to=${range.to}&reviewStatus=confirmed&limit=20000`
+      ),
+    enabled: !!(range.from && range.to),
+  });
+
+  // Imported transactions not yet confirmed as business are left out of the
+  // totals above — show how many so the report isn't silently incomplete.
+  const { data: unreviewed = [] } = useQuery({
+    queryKey: ["transactions", "report-unreviewed", range.from, range.to],
+    queryFn: () =>
+      apiFetch<Transaction[]>(
+        `/api/transactions?from=${range.from}&to=${range.to}&reviewStatus=needs_review&limit=20000`
       ),
     enabled: !!(range.from && range.to),
   });
@@ -243,6 +255,14 @@ export default function ReportsPage() {
           <p className="text-sm text-gray-400 mt-0.5">Financial summary</p>
         </div>
       </div>
+
+      {unreviewed.length > 0 && (
+        <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          {unreviewed.length} imported transaction{unreviewed.length === 1 ? "" : "s"} in this period
+          {unreviewed.length === 1 ? " isn't" : " aren't"} included yet — they might be personal.{" "}
+          <Link to="/review" className="font-medium underline">Review them</Link>
+        </div>
+      )}
 
       {/* Date range selector */}
       <div className="flex flex-wrap items-center gap-2 mb-6">

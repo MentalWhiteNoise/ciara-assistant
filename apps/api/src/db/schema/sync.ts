@@ -1,6 +1,7 @@
 import { sqliteTable, text, integer, primaryKey, uniqueIndex, index } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 import { transactions } from "./transactions";
+import { categories, channels } from "./categories";
 
 // Audit log for every integration sync run.
 // One row per connector per run — tells us what happened and when.
@@ -62,4 +63,21 @@ export const importRawRecords = sqliteTable(
     uniqueIndex("import_raw_records_connector_external_idx").on(t.connector, t.externalId),
     index("import_raw_records_occurred_idx").on(t.connector, t.occurredAt),
   ]
+);
+
+// "Always treat payments to/from this party as ..." — learned during review so
+// recurring payees (subscriptions, regular suppliers) only need deciding once.
+export const payeeRules = sqliteTable(
+  "payee_rules",
+  {
+    id: text("id").primaryKey(),
+    connector: text("connector").notNull(),          // "paypal"
+    counterpartyId: text("counterparty_id").notNull(), // e.g. PayPal account ID
+    counterpartyName: text("counterparty_name"),       // for display only
+    action: text("action", { enum: ["business", "personal"] }).notNull(),
+    categoryId: text("category_id").references(() => categories.id),
+    channelId: text("channel_id").references(() => channels.id),
+    createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
+  },
+  (t) => [uniqueIndex("payee_rules_connector_party_idx").on(t.connector, t.counterpartyId)]
 );

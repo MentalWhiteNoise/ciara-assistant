@@ -205,7 +205,7 @@ export default function DashboardPage() {
   // Month transactions → income / expenses / net
   const { data: monthTx = [], isLoading: txLoading } = useQuery({
     queryKey: ["transactions", "month", monthFrom, monthTo],
-    queryFn: () => apiFetch<Transaction[]>(`/api/transactions?from=${monthFrom}&to=${monthTo}&limit=500`),
+    queryFn: () => apiFetch<Transaction[]>(`/api/transactions?from=${monthFrom}&to=${monthTo}&reviewStatus=confirmed&limit=5000`),
   });
 
   // Today's active tasks

@@ -23,6 +23,7 @@ import { attachmentRoutes } from "./routes/attachments.js";
 import { settingsRoutes } from "./routes/settings.js";
 import { vaultRoutes } from "./routes/vault.js";
 import { syncRoutes } from "./routes/sync.js";
+import { reviewRoutes } from "./routes/review.js";
 import { kdpRoutes } from "./routes/kdp.js";
 import { refreshKdpReminders } from "./connectors/kdp/schedule.js";
 import { pruneExpiredTokens } from "./auth/tokens.js";
@@ -133,6 +134,7 @@ export async function buildApp() {
   await app.register(settingsRoutes, { prefix: "/api" });
   await app.register(vaultRoutes, { prefix: "/api" });
   await app.register(syncRoutes, { prefix: "/api" });
+  await app.register(reviewRoutes, { prefix: "/api" });
   await app.register(kdpRoutes, { prefix: "/api" });
 
   return app;

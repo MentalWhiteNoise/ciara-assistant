@@ -10,7 +10,7 @@ import { z } from "zod";
 import { ulid } from "ulid";
 import { db } from "../db/client.js";
 import { transactions } from "../db/schema/index.js";
-import { eq, desc, and, gte, lte } from "drizzle-orm";
+import { eq, ne, desc, and, gte, lte } from "drizzle-orm";
 
 // ── Zod schemas ────────────────────────────────────────────────────────────────
 
@@ -43,6 +43,8 @@ export async function transactionRoutes(app: FastifyInstance) {
   //   type        — "sale" | "expense" | "refund" | "transfer"
   //   from        — ISO date, start of range (inclusive)
   //   to          — ISO date, end of range (inclusive)
+  //   reviewStatus — "confirmed" | "needs_review" | "personal" | "all"
+  //                  (default: everything except "personal")
   //   limit       — max results (default 100)
   //   offset      — pagination offset (default 0)
   app.get("/", async (request) => {
@@ -50,12 +52,14 @@ export async function transactionRoutes(app: FastifyInstance) {
       type,
       from,
       to,
+      reviewStatus,
       limit = "100",
       offset = "0",
     } = request.query as {
       type?: string;
       from?: string;
       to?: string;
+      reviewStatus?: string;
       limit?: string;
       offset?: string;
     };
@@ -75,6 +79,11 @@ export async function transactionRoutes(app: FastifyInstance) {
     }
     if (to) {
       conditions.push(lte(transactions.occurredAt, to));
+    }
+    if (reviewStatus === "confirmed" || reviewStatus === "needs_review" || reviewStatus === "personal") {
+      conditions.push(eq(transactions.reviewStatus, reviewStatus));
+    } else if (reviewStatus !== "all") {
+      conditions.push(ne(transactions.reviewStatus, "personal"));
     }
 
     const rows = db

@@ -2,6 +2,8 @@
 //
 //   POST /api/sync/paypal       — { mode: "full" | "incremental" } → 202 { jobId }
 //   GET  /api/sync/:connector   — recent jobs + how many raw records are stored
+//   GET  /api/sync/paypal/import — preview: what importing would create (writes nothing)
+//   POST /api/sync/paypal/import — turn downloaded records into transactions
 
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
@@ -11,6 +13,7 @@ import { importRawRecords, syncJobs } from "../db/schema/index.js";
 import { getSecret, isUnlocked } from "../vault/vault.js";
 import { isPayPalSyncRunning, startPayPalSync } from "../connectors/paypal/sync.js";
 import { getPayPalConnectorKey } from "../connectors/paypal/client.js";
+import { countUnprocessed, previewPayPalImport, runPayPalImport } from "../connectors/paypal/import.js";
 
 const StartSchema = z.object({ mode: z.enum(["full", "incremental"]).default("incremental") });
 
@@ -32,6 +35,19 @@ export async function syncRoutes(app: FastifyInstance) {
 
     const jobId = startPayPalSync(body.data.mode);
     return reply.code(202).send({ jobId });
+  });
+
+  // Static paths beat "/sync/:connector" in Fastify's router, so order doesn't matter.
+  app.get("/sync/paypal/import", async (_req, reply) => {
+    if (!isUnlocked() || !getSecret("paypal")) return reply.code(423).send({ error: "Vault is locked or PayPal isn't connected" });
+    const connector = getPayPalConnectorKey();
+    return { unprocessed: countUnprocessed(connector), preview: previewPayPalImport(connector) };
+  });
+
+  app.post("/sync/paypal/import", async (_req, reply) => {
+    if (!isUnlocked() || !getSecret("paypal")) return reply.code(423).send({ error: "Vault is locked or PayPal isn't connected" });
+    if (isPayPalSyncRunning()) return reply.code(409).send({ error: "Wait for the PayPal download to finish" });
+    return runPayPalImport(getPayPalConnectorKey());
   });
 
   app.get<{ Params: { connector: string } }>("/sync/:connector", async (req) => {
