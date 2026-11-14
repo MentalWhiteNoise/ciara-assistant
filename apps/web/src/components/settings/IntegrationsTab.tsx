@@ -199,6 +199,7 @@ function ApiKeyCard({ integration, locked }: { integration: Integration; locked:
       {!editing && test.data && <TestResultPanel result={test.data} />}
       {!editing && !locked && integration.connected && integration.id === "paypal" && <PayPalSyncPanel />}
       {!editing && !locked && integration.connected && integration.id === "squarespace" && <SquarespaceSyncPanel />}
+      {!editing && !locked && integration.connected && integration.id === "mailerlite" && <MailerLiteSyncPanel />}
       {!editing && test.error && (
         <p className="text-sm text-red-600 mt-3">{(test.error as Error).message}</p>
       )}
@@ -452,6 +453,108 @@ function SquarespaceSyncPanel() {
       </div>
       {start.error && <p className="text-xs text-red-600">{(start.error as Error).message}</p>}
       {!running && (byKind.order ?? 0) > 0 && <SquarespaceImportPanel />}
+    </div>
+  );
+}
+
+// ── MailerLite stats download ────────────────────────────────────────────────
+
+interface MailerLiteSnapshot {
+  takenAt: string;
+  subscribers: Record<string, number>;
+  groups: { id: string; name: string; active_count: number }[];
+}
+
+const ML_KIND_LABELS: Record<string, string> = {
+  snapshot: "daily snapshots",
+  signups: "months of signups",
+  campaign: "campaigns",
+  automation: "automations",
+};
+
+function MailerLiteSyncPanel() {
+  const queryClient = useQueryClient();
+  const { data } = useQuery({
+    queryKey: ["sync", "mailerlite"],
+    queryFn: () =>
+      apiFetch<{
+        jobs: SquarespaceJob[];
+        rawByKind?: Record<string, number>;
+        latestSnapshot?: MailerLiteSnapshot | null;
+      }>("/api/sync/mailerlite"),
+    refetchInterval: (q) => (q.state.data?.jobs[0]?.status === "running" ? 2000 : false),
+  });
+
+  const start = useMutation({
+    mutationFn: (mode: "full" | "incremental") =>
+      apiFetch("/api/sync/mailerlite", { method: "POST", body: JSON.stringify({ mode }) }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["sync", "mailerlite"] }),
+  });
+
+  const latest = data?.jobs[0];
+  const running = latest?.status === "running";
+  const hasSucceeded = data?.jobs.some((j) => j.status === "success");
+  const fmt = (iso?: string | null) => (iso ? new Date(iso).toLocaleDateString() : "");
+  const byKind = data?.rawByKind ?? {};
+  const snap = data?.latestSnapshot;
+  const active = snap?.subscribers.active;
+
+  return (
+    <div className="mt-4 border-t border-gray-100 pt-3 space-y-2">
+      {snap && (
+        <div className="text-xs text-gray-600">
+          <p>
+            Subscribers on {fmt(snap.takenAt)}:{" "}
+            <span className="font-medium text-gray-800">{active ?? "?"}</span> active
+            {" "}· {snap.subscribers.unsubscribed ?? 0} unsubscribed
+            {" "}· {snap.subscribers.unconfirmed ?? 0} unconfirmed
+            {" "}· {(snap.subscribers.bounced ?? 0) + (snap.subscribers.junk ?? 0)} bounced/junk
+          </p>
+          {typeof active === "number" && active >= 900 && (
+            <p className="text-amber-700 mt-1">
+              Close to the plan's 1,000-subscriber limit. Going over likely means a higher price at renewal.
+            </p>
+          )}
+        </div>
+      )}
+      <p className="text-xs text-gray-500">
+        Downloaded:{" "}
+        {Object.keys(ML_KIND_LABELS).map((k, i) => (
+          <span key={k}>
+            {i > 0 && " · "}
+            <span className="font-medium text-gray-700">{byKind[k] ?? 0}</span> {ML_KIND_LABELS[k]}
+          </span>
+        ))}{" "}
+        (counts and stats only, no subscriber names or emails)
+      </p>
+
+      {latest && (
+        <p className={`text-xs ${latest.status === "failed" ? "text-red-600" : "text-gray-500"}`}>
+          {running && <>Downloading {ML_KIND_LABELS[latest.config?.current ?? ""] ?? "…"}…</>}
+          {latest.status === "success" && <>Last sync {fmt(latest.completedAt)}: {latest.recordsImported} new, {latest.config?.recordsUpdated ?? 0} updated, {latest.recordsSkipped} unchanged</>}
+          {latest.status === "failed" && <>Last sync failed: {latest.errorMessage}</>}
+        </p>
+      )}
+
+      <div className="flex gap-3">
+        <button
+          onClick={() => start.mutate(hasSucceeded ? "incremental" : "full")}
+          disabled={running || start.isPending}
+          className="text-sm font-medium text-indigo-600 hover:text-indigo-700 disabled:text-indigo-300"
+        >
+          {hasSucceeded ? "Update stats" : "Download stats (incl. 3 years of signups)"}
+        </button>
+        {hasSucceeded && (
+          <button
+            onClick={() => start.mutate("full")}
+            disabled={running || start.isPending}
+            className="text-sm text-gray-500 hover:text-gray-800 disabled:text-gray-300"
+          >
+            Re-download signup history
+          </button>
+        )}
+      </div>
+      {start.error && <p className="text-xs text-red-600">{(start.error as Error).message}</p>}
     </div>
   );
 }

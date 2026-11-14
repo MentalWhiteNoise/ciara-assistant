@@ -2,6 +2,7 @@
 // Each returns a plain result object — expected failures (wrong secret,
 // missing permission) are reported as ok:false, not thrown.
 
+import { MailerLiteError, countSubscribers, listAutomations, listGroups, listSentCampaigns } from "./mailerlite/client.js";
 import { GmailError, findAllMailPath, withMailbox } from "./gmail/client.js";
 import { PayPalError, getPayPalGrant, searchTransactions } from "./paypal/client.js";
 import {
@@ -139,8 +140,46 @@ async function testGmail(): Promise<ConnectionTestResult> {
   }
 }
 
+async function testMailerLite(): Promise<ConnectionTestResult> {
+  // Reads COUNTS only: total subscribers, plus one item from each list Ciara
+  // uses, to prove it is readable. Nothing from the test is stored.
+  let total: number;
+  try {
+    total = await countSubscribers();
+  } catch (err) {
+    if (err instanceof MailerLiteError && err.status === 401) {
+      return { ok: false, message: "MailerLite rejected the API token. Check it was copied in full, or generate a new one (Integrations → MailerLite API)." };
+    }
+    return { ok: false, message: `Could not reach MailerLite: ${(err as Error).message}` };
+  }
+
+  const probe = async (fn: () => Promise<{ meta?: { total?: number } }>) => {
+    try {
+      const r = await fn();
+      return { status: "ok", total: r.meta?.total ?? null };
+    } catch (err) {
+      return { status: err instanceof MailerLiteError && err.status === 403 ? "no permission" : `error: ${(err as Error).message}`, total: null };
+    }
+  };
+  const campaigns = await probe(() => listSentCampaigns(1, 1));
+  const groups = await probe(() => listGroups(1));
+  const automations = await probe(() => listAutomations(1));
+  const permissions = { "Subscriber counts": "ok", Campaigns: campaigns.status, Groups: groups.status, Automations: automations.status };
+  const missing = Object.entries(permissions).filter(([, v]) => v !== "ok").map(([k]) => k);
+  const details = { subscribers: total, sentCampaigns: campaigns.total, groups: groups.total, automations: automations.total, permissions };
+  if (missing.length) {
+    return { ok: false, message: `Token works (${total} subscribers), but these can't be read: ${missing.join(", ")}.`, details };
+  }
+  return {
+    ok: true,
+    message: `Connected to MailerLite: ${total} subscribers, ${campaigns.total ?? "?"} sent campaign(s), ${automations.total ?? "?"} automation(s). Ciara reads counts and stats only.`,
+    details,
+  };
+}
+
 export const CONNECTION_TESTERS: Record<string, () => Promise<ConnectionTestResult>> = {
   gmail: testGmail,
+  mailerlite: testMailerLite,
   paypal: testPayPal,
   squarespace: testSquarespace,
 };

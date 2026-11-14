@@ -81,7 +81,7 @@ export const INTEGRATIONS: IntegrationDefinition[] = [
     description: "Newsletter subscribers and campaign stats",
     authType: "api_key",
     fields: [{ key: "apiToken", label: "API token", secret: true }],
-    help: "MailerLite → Integrations → MailerLite API → Generate new token.",
+    help: "MailerLite → Integrations → MailerLite API → Generate new token (name it \"Ciara\"). MailerLite tokens can't be made read-only, so the limits are in Ciara's code: it only reads subscriber COUNTS (never names or email addresses) and campaign/automation stats, and refuses every request that could send, edit or delete. To cut access at any time, delete the token in MailerLite.",
   },
   {
     id: "patreon",

@@ -4,19 +4,21 @@
 //   POST /api/sync/squarespace  — same, for Squarespace orders/transactions/products
 //   GET  /api/sync/squarespace/import — preview (writes nothing)
 //   POST /api/sync/squarespace/import — create orders/transactions from downloaded records
-//   GET  /api/sync/:connector   — recent jobs + how many raw records are stored
+//   POST /api/sync/mailerlite   — subscriber counts + campaign/automation stats
+//   GET  /api/sync/:connector  — recent jobs + how many raw records are stored
 //   GET  /api/sync/paypal/import — preview: what importing would create (writes nothing)
 //   POST /api/sync/paypal/import — turn downloaded records into transactions
 
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { count, desc, eq, sql } from "drizzle-orm";
+import { and, count, desc, eq, like, sql } from "drizzle-orm";
 import { db } from "../db/client.js";
 import { importRawRecords, syncJobs } from "../db/schema/index.js";
 import { getSecret, isUnlocked } from "../vault/vault.js";
 import { isPayPalSyncRunning, startPayPalSync } from "../connectors/paypal/sync.js";
 import { getPayPalConnectorKey } from "../connectors/paypal/client.js";
 import { isSquarespaceSyncRunning, startSquarespaceSync, SQUARESPACE_CONNECTOR } from "../connectors/squarespace/sync.js";
+import { isMailerLiteSyncRunning, startMailerLiteSync, MAILERLITE_CONNECTOR } from "../connectors/mailerlite/sync.js";
 import { previewSquarespaceImport, runSquarespaceImport } from "../connectors/squarespace/import.js";
 import { countUnprocessed, previewPayPalImport, runPayPalImport } from "../connectors/paypal/import.js";
 
@@ -49,6 +51,15 @@ export async function syncRoutes(app: FastifyInstance) {
     if (!getSecret("squarespace")) return reply.code(400).send({ error: "Squarespace isn't connected" });
     if (isSquarespaceSyncRunning()) return reply.code(409).send({ error: "A Squarespace sync is already running" });
     return reply.code(202).send({ jobId: startSquarespaceSync(body.data.mode) });
+  });
+
+  app.post("/sync/mailerlite", async (req, reply) => {
+    const body = StartSchema.safeParse(req.body ?? {});
+    if (!body.success) return reply.code(400).send({ error: "Invalid mode" });
+    if (!isUnlocked()) return reply.code(423).send({ error: "Vault is locked" });
+    if (!getSecret("mailerlite")) return reply.code(400).send({ error: "MailerLite isn't connected" });
+    if (isMailerLiteSyncRunning()) return reply.code(409).send({ error: "A MailerLite sync is already running" });
+    return reply.code(202).send({ jobId: startMailerLiteSync(body.data.mode) });
   });
 
   // Squarespace import works from stored records only — no vault needed.
@@ -91,7 +102,7 @@ export async function syncRoutes(app: FastifyInstance) {
       .get();
     // Squarespace stores several record kinds ("order:…", "transaction:…") — break the count down.
     let rawByKind: Record<string, number> | undefined;
-    if (connector === SQUARESPACE_CONNECTOR) {
+    if (connector === SQUARESPACE_CONNECTOR || connector === MAILERLITE_CONNECTOR) {
       const kind = sql<string>`substr(${importRawRecords.externalId}, 1, instr(${importRawRecords.externalId}, ':') - 1)`;
       rawByKind = Object.fromEntries(
         db.select({ kind, n: count() })
@@ -102,6 +113,17 @@ export async function syncRoutes(app: FastifyInstance) {
           .map((r) => [r.kind, r.n])
       );
     }
-    return { jobs, rawRecordCount: raw?.n ?? 0, rawByKind };
+    // MailerLite: also return the newest subscriber snapshot (counts only).
+    let latestSnapshot: unknown;
+    if (connector === MAILERLITE_CONNECTOR) {
+      const snap = db
+        .select({ payload: importRawRecords.payload })
+        .from(importRawRecords)
+        .where(and(eq(importRawRecords.connector, connector), like(importRawRecords.externalId, "snapshot:%")))
+        .orderBy(desc(importRawRecords.externalId))
+        .get();
+      latestSnapshot = snap ? JSON.parse(snap.payload) : null;
+    }
+    return { jobs, rawRecordCount: raw?.n ?? 0, rawByKind, latestSnapshot };
   });
 }
