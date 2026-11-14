@@ -34,6 +34,8 @@ const dataDir = process.env.DATA_DIR ?? path.resolve(__dirname, "../../../../../
 export const SCAN_SERVICES = {
   ingramspark: { label: "IngramSpark", query: "from:ingram", sender: /ingram/i, dir: "ingram" },
   "48hr_books": { label: "48HR Books", query: "from:48hrbooks OR from:48hr OR 48hrbooks", sender: /48\s*h(ou)?r/i, dir: "48hr" },
+  // Wise (formerly TransferWise) sends from wise.com addresses.
+  wise: { label: "Wise", query: "from:wise.com OR from:transferwise.com", sender: /@([\w-]+\.)*(wise|transferwise)\.com\b/i, dir: "wise" },
 } as const;
 export type ScanService = keyof typeof SCAN_SERVICES;
 const MAX_MESSAGES = 500;

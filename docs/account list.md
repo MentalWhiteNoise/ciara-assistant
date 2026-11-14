@@ -29,4 +29,13 @@ Patreon
 	paid members
 
 Chase CC
-	Mixed personal and business credit card
+	Mixed personal and business credit card (shared). Many business expenses are paid here,
+	so its transactions need sorting into business/personal.
+	Plan: open a separate business credit card to simplify this.
+
+Huntington Bank
+	Her bank account (ending 5957). Pays business expenses directly, and funds Wise.
+
+Wise
+	Payments to other artists (commissioned art for marketing and books).
+	Personal Wise profile, funded from Huntington.

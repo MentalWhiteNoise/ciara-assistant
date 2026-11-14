@@ -11,12 +11,15 @@ import { INGRAM_CONNECTOR, syncIngramFromGmail } from "../ingramspark/sync.js";
 import { runIngramImport } from "../ingramspark/import.js";
 import { FORTY_EIGHT_CONNECTOR, sync48HrFromGmail } from "../48hr/sync.js";
 import { run48HrImport } from "../48hr/import.js";
+import { WISE_CONNECTOR, syncWiseFromGmail } from "../wise/sync.js";
+import { runWiseImport } from "../wise/import.js";
 
 const MIN_GAP_MS = 6 * 60 * 60 * 1000; // each importer at most every 6 hours
 
 const IMPORTERS = {
   [INGRAM_CONNECTOR]: { sync: syncIngramFromGmail, run: runIngramImport },
   [FORTY_EIGHT_CONNECTOR]: { sync: sync48HrFromGmail, run: run48HrImport },
+  [WISE_CONNECTOR]: { sync: syncWiseFromGmail, run: runWiseImport },
 } as const;
 export type InboxConnector = keyof typeof IMPORTERS;
 

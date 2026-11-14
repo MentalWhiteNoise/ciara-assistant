@@ -66,3 +66,14 @@ test("a part-paid confirmation is not paid in full; a ZIP-code title is ignored"
   assert.equal(c.paidInFull, false);
   assert.equal(isSpecialEdition(c), false); // no foil, no jacket, edge printing "No"
 });
+
+test("a dust jacket alone (no foil) makes it a special edition", () => {
+  const html = `<p>Order Number: 123456</p><p>Book Title: My Book</p>
+<table><tr><td>Binding Type</td><td>Case</td></tr><tr><td>Book Quantity</td><td>10</td></tr>
+<tr><td>Edge Printing</td><td>Yes</td></tr><tr><td>Dust Jacket</td><td>Yes </td></tr></table>
+<h3>Book Order Totals</h3><table><tr><td>Total Cost</td><td>$100.00</td></tr><tr><td>Amount Due</td><td>$0.00</td></tr></table>`;
+  const c = parseConfirmation("48HrBooks.com Order #123456 - New Order Approved Confirmation", htmlToLines(html));
+  assert.ok(c);
+  assert.deepEqual(c.features, { foil: null, dustJacket: true, edgePrinting: true });
+  assert.equal(isSpecialEdition(c), true);
+});

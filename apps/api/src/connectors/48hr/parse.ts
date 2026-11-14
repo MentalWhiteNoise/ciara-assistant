@@ -42,19 +42,8 @@ export function classify48HrEmail(from: string, subject: string, text: string): 
   return "other";
 }
 
-/** HTML email body → plain lines (no tags, entities decoded, blanks dropped). */
-export function htmlToLines(html: string): string[] {
-  const text = html
-    .replace(/<(style|script)[\s\S]*?<\/\1>/gi, "")
-    .replace(/<br\s*\/?>|<\/(p|div|tr|li|h\d|table|td|th)>/gi, "\n")
-    .replace(/<[^>]+>/g, "")
-    .replace(/&nbsp;|&#160;/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&#36;/g, "$")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;|&rsquo;|&#8217;/g, "'");
-  return text.split(/\n/).map((l) => l.replace(/\s+/g, " ").trim()).filter(Boolean);
-}
+// HTML → lines lives in gmail/text.ts (shared by every email importer).
+export { htmlToLines } from "../gmail/text.js";
 
 export interface FortyEightConfirmation {
   orderNumber: string;
@@ -144,8 +133,8 @@ export function parseConfirmation(subject: string, lines: string[]): FortyEightC
     features: {
       // "Cover D3D Foil Color: Silver" / "Jacket D3D Foil Color: Gold"
       foil: lines.map((l) => /foil colou?r:\s*(.+)$/i.exec(l)?.[1].trim()).find((x) => x && !/^none$/i.test(x)) ?? null,
-      dustJacket: /^yes/i.test(field(lines, "Dust Jacket") ?? ""),
-      edgePrinting: /^yes/i.test(field(lines, "Edge Printing") ?? ""),
+      dustJacket: /^yes\b/i.test(field(lines, "Dust Jacket") ?? ""),
+      edgePrinting: /^yes\b/i.test(field(lines, "Edge Printing") ?? ""),
     },
   };
 }

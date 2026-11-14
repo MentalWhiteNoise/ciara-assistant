@@ -2,17 +2,20 @@
 // No network — reads local files only. Never point DATA_DIR at the real data/
 // folder unless you mean to import for real.
 //
-// Usage: DATA_DIR=<copy dir> tsx src/scripts/inbox-dryrun.ts <ingramspark|48hr_books> <folder-of-eml>
+// Usage: DATA_DIR=<copy dir> tsx src/scripts/inbox-dryrun.ts <ingramspark|48hr_books|wise> <folder-of-eml>
 import { syncIngramFromFolder } from "../connectors/ingramspark/sync.js";
 import { previewIngramImport, runIngramImport } from "../connectors/ingramspark/import.js";
 import { sync48HrFromFolder } from "../connectors/48hr/sync.js";
 import { preview48HrImport, run48HrImport } from "../connectors/48hr/import.js";
+import { syncWiseFromFolder } from "../connectors/wise/sync.js";
+import { previewWiseImport, runWiseImport } from "../connectors/wise/import.js";
 
 const [service, folder] = process.argv.slice(2);
 if (!process.env.DATA_DIR || !folder) throw new Error("Set DATA_DIR and pass <service> <folder>");
 const svc = {
   ingramspark: { sync: syncIngramFromFolder, preview: previewIngramImport, run: runIngramImport },
   "48hr_books": { sync: sync48HrFromFolder, preview: preview48HrImport, run: run48HrImport },
+  wise: { sync: syncWiseFromFolder, preview: previewWiseImport, run: runWiseImport },
 }[service];
 if (!svc) throw new Error(`Unknown service ${service}`);
 

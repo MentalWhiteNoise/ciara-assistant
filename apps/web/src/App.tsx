@@ -32,6 +32,7 @@ import SettingsPage from "@/pages/SettingsPage";
 import KdpPage from "@/pages/KdpPage";
 import IngramPage from "@/pages/IngramPage";
 import FortyEightHrPage from "@/pages/FortyEightHrPage";
+import WisePage from "@/pages/WisePage";
 import ReviewPage from "@/pages/ReviewPage";
 import PlaceholderPage from "@/pages/PlaceholderPage";
 
@@ -63,6 +64,7 @@ export default function App() {
             <Route path="/kdp" element={<KdpPage />} />
             <Route path="/ingram" element={<IngramPage />} />
             <Route path="/48hr" element={<FortyEightHrPage />} />
+            <Route path="/wise" element={<WisePage />} />
             <Route path="/review" element={<ReviewPage />} />
 
             {/* Catalog */}

@@ -126,6 +126,14 @@ export const INTEGRATIONS: IntegrationDefinition[] = [
     fields: [],
   },
   {
+    id: "wise",
+    displayName: "Wise",
+    description: "Payments to artists (commissioned and marketing art) — emails for now",
+    authType: "import_only",
+    fields: [],
+    importPath: "/wise",
+  },
+  {
     id: "beventi",
     displayName: "Beventi",
     description: "Event preorders and wholesale orders",

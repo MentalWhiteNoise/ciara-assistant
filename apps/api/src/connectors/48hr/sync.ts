@@ -12,10 +12,10 @@
 import { createHash } from "node:crypto";
 import { fromText, unpackEmail } from "../gmail/unpack.js";
 import { fetchFromGmail, keepFile, readEmlFolder, runSyncJob, storeRawRecord } from "../gmail/collect.js";
+import { emailLines } from "../gmail/text.js";
 import {
   classify48HrEmail,
   cleanTitle,
-  htmlToLines,
   orderNumberFrom,
   parseConfirmation,
   type FortyEightConfirmation,
@@ -56,9 +56,7 @@ async function processEmails(jobId: string, rawEmails: Buffer[], result: FortyEi
     for (const { raw: emlRaw, parsed } of await unpackEmail(raw)) {
       const from = fromText(parsed);
       const subject = parsed.subject ?? "";
-      const lines = parsed.html
-        ? htmlToLines(String(parsed.html))
-        : (parsed.text ?? "").split(/\n/).map((l) => l.trim()).filter(Boolean);
+      const lines = emailLines(parsed);
       const kind = classify48HrEmail(from, subject, lines.join("\n"));
       if (kind === "other") continue;
       const orderNumber = orderNumberFrom(subject);
