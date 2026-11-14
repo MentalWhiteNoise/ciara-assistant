@@ -29,12 +29,15 @@
     "fast-xml-parser": "^4.5.7",
     "fastify": "^5.2.1",
     "fflate": "^0.8.3",
+    "imapflow": "^2.11.0",
+    "mailparser": "^3.14.3",
     "pino-pretty": "^13.0.0",
     "ulid": "^2.3.0",
     "zod": "^3.24.1"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.12",
+    "@types/mailparser": "^3.9.0",
     "@types/node": "^22.13.4",
     "drizzle-kit": "^0.30.4",
     "tsx": "^4.19.2",

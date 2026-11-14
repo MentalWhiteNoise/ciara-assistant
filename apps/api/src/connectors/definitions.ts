@@ -108,6 +108,7 @@ export const INTEGRATIONS: IntegrationDefinition[] = [
     description: "Secondary publishing portal — sales and book orders",
     authType: "import_only",
     fields: [],
+    importPath: "/ingram",
   },
   {
     id: "48hr_books",
@@ -115,6 +116,7 @@ export const INTEGRATIONS: IntegrationDefinition[] = [
     description: "Print orders",
     authType: "import_only",
     fields: [],
+    importPath: "/48hr",
   },
   {
     id: "pirateship",

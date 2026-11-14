@@ -121,6 +121,11 @@ insertOrIgnoreCategory({ id: id(), name: "Packaging & Mailers", type: "expense",
 insertOrIgnoreCategory({ id: id(), name: "Merchandise & Merch Production", type: "expense", parentId: SUPPLIES_ID, taxLine: "line_22", color: "#92400e" });
 insertOrIgnoreCategory({ id: id(), name: "ISBNs & Barcodes", type: "expense", parentId: SUPPLIES_ID, taxLine: "line_22", color: "#78350f" });
 
+// Schedule C Part III (cost of goods sold), line 36: Purchases — books bought
+// for resale (author-copy print orders), incl. the tax and shipping paid on them.
+// The IngramSpark importer also creates this if it's missing.
+insertOrIgnoreCategory({ id: id(), name: "Book Inventory Purchases", type: "expense", taxLine: "cogs_line_36", color: "#a16207" });
+
 // Line 24a: Travel
 insertOrIgnoreCategory({ id: id(), name: "Travel", type: "expense", taxLine: "line_24a", color: "#14b8a6" });
 

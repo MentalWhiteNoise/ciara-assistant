@@ -25,6 +25,10 @@ import { vaultRoutes } from "./routes/vault.js";
 import { syncRoutes } from "./routes/sync.js";
 import { reviewRoutes } from "./routes/review.js";
 import { kdpRoutes } from "./routes/kdp.js";
+import { ingramRoutes } from "./routes/ingram.js";
+import { inboxRoutes } from "./routes/inbox.js";
+import { autoCheckInbox } from "./connectors/gmail/auto.js";
+import { fortyEightRoutes } from "./routes/48hr.js";
 import { refreshKdpReminders } from "./connectors/kdp/schedule.js";
 import { pruneExpiredTokens } from "./auth/tokens.js";
 
@@ -110,6 +114,12 @@ export async function buildApp() {
   runReminders();
   setInterval(runReminders, 6 * 60 * 60 * 1000).unref();
 
+  // Reports inbox (IngramSpark, 48HR Books): check for new mail and import it.
+  // Ticks hourly; each tick only does anything if the vault is unlocked
+  // (someone has logged in) and that service's last check is 6+ hours old.
+  // Gmail is opened read-only.
+  setInterval(() => void autoCheckInbox(app.log), 60 * 60 * 1000).unref();
+
   // ── Routes ───────────────────────────────────────────────────────────────
 
   // Health check — no auth required
@@ -136,6 +146,9 @@ export async function buildApp() {
   await app.register(syncRoutes, { prefix: "/api" });
   await app.register(reviewRoutes, { prefix: "/api" });
   await app.register(kdpRoutes, { prefix: "/api" });
+  await app.register(ingramRoutes, { prefix: "/api" });
+  await app.register(inboxRoutes, { prefix: "/api" });
+  await app.register(fortyEightRoutes, { prefix: "/api" });
 
   return app;
 }

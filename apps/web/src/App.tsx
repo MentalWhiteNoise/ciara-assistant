@@ -30,6 +30,8 @@ import OrdersPage from "@/pages/OrdersPage";
 import ChecklistsPage from "@/pages/ChecklistsPage";
 import SettingsPage from "@/pages/SettingsPage";
 import KdpPage from "@/pages/KdpPage";
+import IngramPage from "@/pages/IngramPage";
+import FortyEightHrPage from "@/pages/FortyEightHrPage";
 import ReviewPage from "@/pages/ReviewPage";
 import PlaceholderPage from "@/pages/PlaceholderPage";
 
@@ -59,6 +61,8 @@ export default function App() {
             <Route path="/expenses" element={<PlaceholderPage />} />
             <Route path="/income" element={<PlaceholderPage />} />
             <Route path="/kdp" element={<KdpPage />} />
+            <Route path="/ingram" element={<IngramPage />} />
+            <Route path="/48hr" element={<FortyEightHrPage />} />
             <Route path="/review" element={<ReviewPage />} />
 
             {/* Catalog */}
