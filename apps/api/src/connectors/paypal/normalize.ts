@@ -337,7 +337,9 @@ function saleChannel(r: PayPalRecord, ctx: NormalizeContext): string {
   const t = r.transaction_info;
   if (t.transaction_event_code === "T0018") return CHANNEL.pos;
   if (r.cart_info?.paypal_invoice_id) return CHANNEL.invoice;
-  if (ctx.partnerFeeTargets.has(t.transaction_id)) return CHANNEL.website;
+  // Not "website": a partner fee means some other platform's PayPal checkout
+  // (Squarespace orders paid by PayPal carry none). Website sales are decided
+  // only by the Squarespace import, which matches the actual order.
   return CHANNEL.paypal;
 }
 

@@ -45,11 +45,11 @@ test("POS sale → confirmed sale at full amount + linked fee expense", () => {
   assert.equal(fee.relatedExternalId, r.transaction_info.transaction_id);
 });
 
-test("checkout sale with a partner fee is a website sale; partner fee links to it", () => {
+test("checkout sale with a partner fee is NOT assumed to be a website sale; partner fee links to it", () => {
   const sale = rec("T0006", "40.00", { fee_amount: { currency_code: "USD", value: "-1.50" } });
   const partner = rec("T0113", "-1.20", { paypal_reference_id: sale.transaction_info.transaction_id });
   const all = [sale, partner];
-  assert.equal(drafts(sale, all)[0].channelName, CHANNEL.website);
+  assert.equal(drafts(sale, all)[0].channelName, CHANNEL.paypal);
   const [pf] = drafts(partner, all);
   assert.equal(pf.type, "expense");
   assert.equal(pf.categoryName, CATEGORY.platformFees);
