@@ -10,10 +10,10 @@
 //
 // Each paid order is an inventory purchase (see ../purchases.ts):
 //   • one expense, "Book Inventory Purchases", for the order total
-//   • the book found or created by title + format — paperbacks match Ingram's
-//     ("Fated to the Frozen Prince (Paperback)"); 48HR hardcovers are their own
-//     special edition ("Blackwarden (Special Edition Hardcover)"). 48HR emails
-//     have no ISBN.
+//   • the book found or created by title + format. Prints with foil, a dust
+//     jacket or edge printing are their own special-edition product, e.g.
+//     "Blackwarden (Special Edition Hardcover)"; plain prints match Ingram's
+//     ("Title (Paperback)"). 48HR emails have no ISBN.
 //   • all copies — INCLUDING the free ones ("100 + 25 Free" = 125) — into home
 //     stock at total ÷ copies, dated the "ready for pick up" email if there is one
 //   • the final confirmation email attached as the receipt
@@ -37,15 +37,19 @@ import {
   receiveStock,
 } from "../purchases.js";
 import { FORTY_EIGHT_CONNECTOR, dataDir, type FortyEightEmailPayload } from "./sync.js";
+import { isSpecialEdition, type FortyEightConfirmation } from "./parse.js";
 
 const PAYEE = "48HR Books";
 
-// 48HR's hardcovers (dust jacket, foil, sprayed edges) are a SPECIAL EDITION,
-// not the same book as IngramSpark's plain case-laminate hardcover — the owner
-// confirmed 2026-11-14. Separate products keep stock and cost per copy apart.
-function productTitleFor48Hr(title: string, binding: string | null) {
-  if (/^case$/i.test((binding ?? "").trim())) return `${title} (Special Edition Hardcover)`;
-  return bookProductTitle(title, binding);
+// Every special edition is its own product, so its stock, cost and (later)
+// sales stay separate — owner's rule, 2026-11-14. A 48HR print is a special
+// edition when it has foil, a dust jacket or edge printing (e.g. Blackwarden
+// hardcover with gold-foil jacket; Fated paperback with silver-foil cover).
+// Plain prints share the product of the same title + format from IngramSpark.
+function productTitleFor48Hr(c: FortyEightConfirmation, title: string) {
+  if (!isSpecialEdition(c)) return bookProductTitle(title, c.binding);
+  const format = formatFromBinding(c.binding);
+  return `${title} (Special Edition${format ? ` ${format}` : ""})`;
 }
 const round2 = (n: number) => Math.round(n * 100) / 100;
 const round4 = (n: number) => Math.round(n * 10000) / 10000;
@@ -154,7 +158,7 @@ function plan() {
 
     const c = final.confirmation!;
     const warnings: string[] = [];
-    const title = productTitleFor48Hr(baseTitle, c.binding);
+    const title = productTitleFor48Hr(c, baseTitle);
     if (!formatFromBinding(c.binding)) warnings.push(`unknown binding "${c.binding}" — product named without a format`);
     if (c.quantity <= 0) warnings.push("no copy count — nothing goes into inventory");
     if (latest !== final) warnings.push(`a newer confirmation (${latest.date?.slice(0, 10)}) isn't paid in full — using the paid one`);
@@ -211,6 +215,8 @@ export function run48HrImport(): FortyEightImportSummary {
         const transactionId = ulid();
         const notes = [
           `48HR Books order ${p.orderNumber}: ${p.quantityText} = ${p.copies} copies, ${c.binding ?? "?"} binding, ${c.bwPages ?? "?"} B&W pages`,
+          [c.features.foil && `${c.features.foil} foil`, c.features.dustJacket && "dust jacket", c.features.edgePrinting && "edge printing"]
+            .filter(Boolean).join(", ") || null,
           `Subtotal ${p.subtotal.toFixed(2)}` + (p.discount > 0 ? ` − discount ${p.discount.toFixed(2)}` : "") +
             ` + tax ${p.tax.toFixed(2)} + shipping ${p.shipping.toFixed(2)} = ${p.total.toFixed(2)}`,
           `Cost per copy (incl. free copies): ${p.unitCost.toFixed(2)}`,
@@ -240,7 +246,7 @@ export function run48HrImport(): FortyEightImportSummary {
         if (p.copies > 0) {
           const productId = findOrCreateBook(tx, {
             title: p.title,
-            metadata: { binding: c.binding, pageCount: c.bwPages, createdBy: "48hr_books import" },
+            metadata: { binding: c.binding, pageCount: c.bwPages, specialEdition: isSpecialEdition(c), features: c.features, createdBy: "48hr_books import" },
           });
           receiveStock(tx, {
             productId,

@@ -134,7 +134,7 @@ export default function FortyEightHrPage() {
         <p className="text-xs text-gray-500">
           Each order is an expense under "Book Inventory Purchases" (Schedule C cost of goods, line 36) with 48HR's
           confirmation email attached. All copies, including the free ones, go into home inventory at total ÷ copies.
-          48HR hardcovers are recorded as their own special edition.
+          Prints with foil, a dust jacket or edge printing are recorded as their own special-edition product.
         </p>
       </section>
 

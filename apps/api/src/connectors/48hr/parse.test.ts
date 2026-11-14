@@ -1,17 +1,19 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { classify48HrEmail, htmlToLines, orderNumberFrom, parseConfirmation } from "./parse.js";
+import { classify48HrEmail, htmlToLines, isSpecialEdition, orderNumberFrom, parseConfirmation } from "./parse.js";
 
 const FROM = '"48HrBooks.com" <info@48hrbooks.com>';
 
 // Made-up order in the shape of a 48HR confirmation email (HTML table layout).
-const confirmationHtml = (o: { title: string; qty: string; subtotal: string; total: string; payments: string; due: string }) => `
+const confirmationHtml = (o: { title: string; qty: string; subtotal: string; total: string; payments: string; due: string; foil?: string }) => `
 <html><body><style>.x{color:red}</style>
 <p>Thank you for ordering from 48 Hour Books!</p>
 <p>Order Number: 123456</p><p>Book Title: ${o.title}</p>
 <table><tr><td>Binding Type</td><td>Case</td></tr>
 <tr><td># of B&amp;W Pages</td><td>300</td></tr>
-<tr><td>Book Quantity</td><td>${o.qty}</td></tr></table>
+<tr><td>Book Quantity</td><td>${o.qty}</td></tr>
+<tr><td>Edge Printing</td><td>No</td></tr>
+${o.foil ? `<tr><td>Cover D3D Foil Color: ${o.foil}</td></tr>` : ""}</table>
 <h3>Book Order Totals</h3>
 <table><tr><td>Subtotal</td><td>&#36;${o.subtotal}</td></tr>
 <tr><td>Tax</td><td>$0.00</td></tr><tr><td>Shipping</td><td>$0.00</td></tr>
@@ -35,7 +37,7 @@ test("classifies 48HR emails by subject", () => {
 });
 
 test("parses a paid-in-full confirmation, counting free copies", () => {
-  const html = confirmationHtml({ title: "My Book", qty: "100 + 25 Free", subtotal: "1,020.00", total: "1,000.00", payments: "1,000.00", due: "0.00" });
+  const html = confirmationHtml({ title: "My Book", qty: "100 + 25 Free", subtotal: "1,020.00", total: "1,000.00", payments: "1,000.00", due: "0.00", foil: "Silver" });
   const c = parseConfirmation("48HrBooks.com Order #123456 - New Exact Reprint Order Confirmation", htmlToLines(html));
   assert.ok(c);
   assert.equal(c.orderNumber, "123456");
@@ -49,6 +51,8 @@ test("parses a paid-in-full confirmation, counting free copies", () => {
   assert.equal(c.total, 1000);
   assert.equal(c.paidInFull, true);
   assert.equal(c.shippingMethod, "Pick-Up: Twinsburg");
+  assert.deepEqual(c.features, { foil: "Silver", dustJacket: false, edgePrinting: false });
+  assert.equal(isSpecialEdition(c), true);
 });
 
 test("a part-paid confirmation is not paid in full; a ZIP-code title is ignored", () => {
@@ -60,4 +64,5 @@ test("a part-paid confirmation is not paid in full; a ZIP-code title is ignored"
   assert.equal(c.freeCopies, 0);
   assert.equal(c.amountDue, 400);
   assert.equal(c.paidInFull, false);
+  assert.equal(isSpecialEdition(c), false); // no foil, no jacket, edge printing "No"
 });

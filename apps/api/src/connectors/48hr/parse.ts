@@ -74,6 +74,13 @@ export interface FortyEightConfirmation {
   amountDue: number;
   shippingMethod: string | null;
   paidInFull: boolean;
+  /** Special finishes — these make a print a special edition. */
+  features: { foil: string | null; dustJacket: boolean; edgePrinting: boolean };
+}
+
+/** Foil, dust jacket or edge printing ⇒ special edition (owner's rule, 2026-11-14). */
+export function isSpecialEdition(c: Pick<FortyEightConfirmation, "features">) {
+  return !!c.features.foil || c.features.dustJacket || c.features.edgePrinting;
 }
 
 const money = (s: string | undefined) => {
@@ -134,5 +141,11 @@ export function parseConfirmation(subject: string, lines: string[]): FortyEightC
     amountDue,
     shippingMethod: field(lines, "Shipping Method") ?? null,
     paidInFull: total > 0 && amountDue === 0,
+    features: {
+      // "Cover D3D Foil Color: Silver" / "Jacket D3D Foil Color: Gold"
+      foil: lines.map((l) => /foil colou?r:\s*(.+)$/i.exec(l)?.[1].trim()).find((x) => x && !/^none$/i.test(x)) ?? null,
+      dustJacket: /^yes/i.test(field(lines, "Dust Jacket") ?? ""),
+      edgePrinting: /^yes/i.test(field(lines, "Edge Printing") ?? ""),
+    },
   };
 }
