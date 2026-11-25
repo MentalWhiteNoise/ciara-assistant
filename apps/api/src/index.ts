@@ -30,6 +30,8 @@ import { inboxRoutes } from "./routes/inbox.js";
 import { autoCheckInbox } from "./connectors/gmail/auto.js";
 import { fortyEightRoutes } from "./routes/48hr.js";
 import { wiseRoutes } from "./routes/wise.js";
+import { newsletterRoutes } from "./routes/newsletter.js";
+import { chaseRoutes } from "./routes/chase.js";
 import { refreshKdpReminders } from "./connectors/kdp/schedule.js";
 import { pruneExpiredTokens } from "./auth/tokens.js";
 
@@ -151,6 +153,8 @@ export async function buildApp() {
   await app.register(inboxRoutes, { prefix: "/api" });
   await app.register(fortyEightRoutes, { prefix: "/api" });
   await app.register(wiseRoutes, { prefix: "/api" });
+  await app.register(newsletterRoutes, { prefix: "/api" });
+  await app.register(chaseRoutes, { prefix: "/api" });
 
   return app;
 }

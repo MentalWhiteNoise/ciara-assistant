@@ -36,6 +36,7 @@ const NAV_GROUPS: { heading: string; items: NavItem[] }[] = [
       { label: "IngramSpark", to: "/ingram", icon: "◇" },
       { label: "48HR Books", to: "/48hr", icon: "▱" },
       { label: "Wise", to: "/wise", icon: "⇢" },
+      { label: "Chase Card", to: "/chase", icon: "▭" },
     ],
   },
   {
@@ -55,6 +56,7 @@ const NAV_GROUPS: { heading: string; items: NavItem[] }[] = [
     heading: "Reporting",
     items: [
       { label: "Reports", to: "/reports", icon: "◉" },
+      { label: "Newsletter", to: "/newsletter", icon: "✉" },
       { label: "Tax Prep", to: "/reports/tax", icon: "◎" },
     ],
   },

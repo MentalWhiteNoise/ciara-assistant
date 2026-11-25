@@ -25,6 +25,13 @@ const DecideSchema = z.object({
 
 type Tx = typeof transactions.$inferSelect;
 
+// Rows whose business/personal status is decided by the transaction they're
+// linked to: Chase foreign transaction fees (see connectors/chase/import.ts).
+// Their category stays their own (a fee), only the decision is shared.
+const FOLLOWING_SOURCES = ["chase"];
+const followsParent = (t: Pick<Tx, "source" | "relatedTransactionId">) =>
+  FOLLOWING_SOURCES.includes(t.source) && !!t.relatedTransactionId;
+
 export async function reviewRoutes(app: FastifyInstance) {
   app.addHook("preHandler", app.authenticate);
 
@@ -34,7 +41,9 @@ export async function reviewRoutes(app: FastifyInstance) {
       .from(transactions)
       .where(eq(transactions.reviewStatus, "needs_review"))
       .orderBy(asc(transactions.occurredAt))
-      .all();
+      .all()
+      // Card fees that follow their charge aren't decided on their own.
+      .filter((t) => !followsParent(t));
 
     const groups = new Map<string, { key: string; payee: string | null; counterpartyId: string | null; source: string; transactions: Tx[] }>();
     for (const t of rows) {
@@ -86,6 +95,16 @@ export async function reviewRoutes(app: FastifyInstance) {
           .where(inArray(transactions.id, ids))
           .run();
         updated += ids.length;
+
+        // Linked fees follow: same decision, their own category.
+        tx.update(transactions)
+          .set({
+            reviewStatus: status,
+            ...(action !== "needs_review" ? { isTaxDeductible: action === "business" } : {}),
+            updatedAt: now,
+          })
+          .where(and(inArray(transactions.relatedTransactionId, ids), inArray(transactions.source, FOLLOWING_SOURCES)))
+          .run();
       };
       apply(targets.map((t) => t.id));
 
