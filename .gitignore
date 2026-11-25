@@ -39,8 +39,9 @@ desktop.ini
 npm-debug.log*
 pnpm-debug.log*
 
-# ── Drizzle generated (keep migrations, not snapshots) ────────────────────────
-apps/api/src/db/migrations/meta/
+# ── Drizzle migrations: commit everything, including meta/ ────────────────────
+# meta/_journal.json is required by the migrator, and the snapshots are what
+# `db:generate` diffs against. Both must travel with the repo.
 
 # ── TLS certs (local dev only) ────────────────────────────────────────────────
 *.pem

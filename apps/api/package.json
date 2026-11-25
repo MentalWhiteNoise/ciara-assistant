@@ -14,7 +14,8 @@
     "db:migrate": "tsx src/db/migrate.ts",
     "db:seed": "tsx src/db/seed.ts",
     "db:studio": "drizzle-kit studio",
-    "reset-password": "tsx src/scripts/reset-password.ts"
+    "reset-password": "tsx src/scripts/reset-password.ts",
+    "backup": "tsx src/scripts/backup.ts"
   },
   "dependencies": {
     "@ciara/shared": "workspace:*",
