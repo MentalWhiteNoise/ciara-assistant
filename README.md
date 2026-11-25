@@ -17,8 +17,8 @@ Planning and design docs are in [`docs/`](docs/). Start with
 
 | Tool | Version | Notes |
 |------|---------|-------|
-| Node.js | 22 or newer (24 works) | <https://nodejs.org> (LTS installer) |
-| pnpm | 10.x | Enable with `corepack enable` (ships with Node) |
+| Node.js | 22 or newer (24 and 26 work) | <https://nodejs.org> (LTS installer) |
+| pnpm | 10.x | `npm install -g pnpm@10.30.3` (see [Installation](#installation)) |
 | Git | any recent | |
 | mkcert | any | Optional, for HTTPS. <https://github.com/FiloSottile/mkcert> |
 
@@ -35,9 +35,15 @@ Debian/Ubuntu: `sudo apt install build-essential python3`) and re-run it.
 ```bash
 git clone https://github.com/MentalWhiteNoise/ciara-assistant.git
 cd ciara-assistant
-corepack enable          # makes the pnpm version pinned in package.json available
+npm install -g pnpm@10.30.3   # the version pinned in package.json ("packageManager")
 pnpm install
 ```
+
+Node 25 and newer no longer include corepack. On Node 24 or older,
+`corepack enable` works in place of the `npm install -g` line.
+
+On Windows, if PowerShell says "running scripts is disabled on this system",
+use `npm.cmd` and `pnpm.cmd` in place of `npm` and `pnpm`.
 
 Then choose one of the two options below.
 
@@ -87,18 +93,43 @@ This starts both parts together:
 
 | Part | Address | |
 |------|---------|---|
-| Web app | `https://<machine>:5173` | Open this in the browser |
+| Web app | `https://<machine>:5174` | Open this in the browser |
 | API | `https://<machine>:3001` | Used by the web app; no need to open it |
 
-(`http://` instead if no certificates are installed. If port 5173 is busy, Vite
-uses 5174 and prints the address.)
+(`http://` instead if no certificates are installed. The ports
+are fixed: if one is already in use, that part stops with an error.)
 
 Both bind to all network interfaces, so other devices on the LAN can reach the
-app at the machine's IP. Allow ports 5173 and 3001 through the machine's
+app at the machine's IP. Allow ports 5174 and 3001 through the machine's
 firewall for LAN access.
 
 Environment overrides (all optional): `PORT` (API port, default 3001), `HOST`
 (default `0.0.0.0`), `DATA_DIR` (default `<repo>/data`).
+
+### Starting automatically (Windows)
+
+To start the app whenever Windows starts, before anyone logs in, run this once
+from an administrator PowerShell window in the repo folder:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\install-autostart.ps1
+```
+
+It creates a scheduled task named **Ciara Assistant** that runs
+`scripts/serve.mjs`. If the app stops, the task starts it again within a minute.
+Add `-Remove` to the command to undo it.
+
+- **Log:** `data/logs/server.log` (the run before it: `server.prev.log`).
+- **After a restart, log in once.** The vault stays locked until someone logs in,
+  so automatic inbox checks wait until then.
+- **After changing API code or `git pull`,** restart the task (stop it, and it
+  starts again within a minute): `Stop-ScheduledTask "Ciara Assistant"`
+- **To use `pnpm dev` instead,** turn the task off first, since both use the same
+  ports: `Disable-ScheduledTask "Ciara Assistant"`, then
+  `Stop-ScheduledTask "Ciara Assistant"`. Turn it back on with
+  `Enable-ScheduledTask "Ciara Assistant"`.
+
+These commands may need an administrator PowerShell window.
 
 ### Useful commands
 
@@ -119,6 +150,9 @@ pnpm install
 cd apps/api && pnpm backup && pnpm db:migrate
 ```
 
+Then restart the app (see [Starting automatically](#starting-automatically-windows)
+if it runs as a scheduled task).
+
 ---
 
 ## The `data/` folder
@@ -135,6 +169,7 @@ Everything private lives in `data/` at the repo root. It is gitignored and is
 | `jwt.secret` | Login-session signing key | Optional (a new one is generated; you just log in again) |
 | `ciara.pem`, `ciara-key.pem` | TLS certificate | **No**: regenerate per machine |
 | `backups/` | Output of `pnpm backup` | No |
+| `logs/` | Server log from the auto-start task | No |
 
 ---
 
@@ -164,7 +199,8 @@ example a password-protected 7-Zip archive with AES-256).
 **On the old machine**
 
 1. Commit and push any code changes: `git push`.
-2. Stop the app (Ctrl+C in the `pnpm dev` window), so nothing changes after the backup.
+2. Stop the app (Ctrl+C in the `pnpm dev` window, or disable and stop the
+   auto-start task), so nothing changes after the backup.
 3. Make a backup: `cd apps/api && pnpm backup`.
 4. Zip the printed `ciara-backup-...` folder and move it to the new machine
    (USB drive, or a direct network copy). Avoid email or public cloud links.

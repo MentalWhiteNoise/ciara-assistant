@@ -75,8 +75,8 @@ export async function buildApp() {
 
   await app.register(cors, {
     origin: [
-      "http://localhost:5173",       // Vite dev server
-      "https://localhost:5173",
+      "http://localhost:5174",       // Vite dev server
+      "https://localhost:5174",
       "https://localhost:3001",
       /^https:\/\/ciara\.local/,     // tablet / phone on LAN (mkcert)
       // RFC 1918 private IP ranges — covers 192.168.x.x, 10.x.x.x, 172.16-31.x.x

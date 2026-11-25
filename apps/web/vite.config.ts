@@ -63,7 +63,11 @@ export default defineConfig({
   },
   server: {
     host: true,  // bind to 0.0.0.0 so LAN devices can reach it
-    port: 5173,
+    // Fixed at 5174: another server on this machine (Kitchen Lights) owns 5173.
+    // strictPort: fail if 5174 is taken instead of moving to another port, so the
+    // address saved in bookmarks and the installed tablet/phone app stays valid.
+    port: 5174,
+    strictPort: true,
     https: tls ?? undefined,
     // Proxy API requests to the backend during development.
     // When the frontend calls /api/..., Vite forwards it to the API server.
